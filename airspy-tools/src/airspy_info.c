@@ -26,13 +26,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+char version[255 + 1];
+airspy_read_partid_serialno_t read_partid_serialno;
+
 int main(int argc, char** argv)
 {
 	struct airspy_device* device = NULL;
 	int result = AIRSPY_SUCCESS;
 	uint8_t board_id = AIRSPY_BOARD_ID_INVALID;
-	char version[255 + 1];
-	airspy_read_partid_serialno_t read_partid_serialno;
 
 	result = airspy_init();
 	if (result != AIRSPY_SUCCESS) {

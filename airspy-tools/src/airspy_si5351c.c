@@ -61,7 +61,7 @@ int dump_register(struct airspy_device* device, const uint8_t register_number) {
 	uint8_t register_value;
 	int result;
 
-  result = airspy_si5351c_read(device, register_number, &register_value);
+	result = airspy_si5351c_read(device, register_number, &register_value);
 	
 	if( result == AIRSPY_SUCCESS ) {
 		printf("[%3d] -> 0x%02x\n", register_number, register_value);
@@ -86,11 +86,8 @@ int dump_registers(struct airspy_device* device) {
 	return result;
 }
 
-int write_register(
-	struct airspy_device* device,
-	const uint8_t register_number,
-	const uint8_t register_value
-) {
+int write_register(	struct airspy_device* device,	const uint8_t register_number, const uint8_t register_value)
+{
 	int result = AIRSPY_SUCCESS;
 	result = airspy_si5351c_write(device, register_number, register_value);
 	
@@ -207,7 +204,7 @@ int main(int argc, char** argv) {
 		switch( opt ) {
 		case 'n':
 			result = parse_int(optarg, &register_number);
-      n_opt = 1;
+			n_opt = 1;
 			break;
 		
 		case 'w':

@@ -87,6 +87,11 @@ typedef struct {
 	enum airspy_sample_type sample_type;
 } airspy_transfer_t, airspy_transfer;
 
+typedef enum {
+	RECEIVER_MODE_OFF = 0,
+	RECEIVER_MODE_RX = 1
+} receiver_mode_t;
+
 typedef struct {
 	uint32_t part_id[2];
 	uint32_t serial_no[4];

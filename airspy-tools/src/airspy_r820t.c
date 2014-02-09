@@ -60,13 +60,13 @@ int dump_register(struct airspy_device* device, const uint8_t register_number)
 {
 	uint8_t register_value;
 	int result = airspy_r820t_read(device, register_number, &register_value);
-	
+
 	if( result == AIRSPY_SUCCESS ) {
 		printf("[%3d] -> 0x%02X\n", register_number, register_value);
 	} else {
 		printf("airspy_r820t_read() failed: %s (%d)\n", airspy_error_name(result), result);
 	}
-	
+
 	return result;
 }
 
@@ -74,50 +74,34 @@ int dump_registers(struct airspy_device* device)
 {
 	uint8_t register_number;
 	int result = AIRSPY_SUCCESS;
-	
+
 	for(register_number=0; register_number<32; register_number++)
-  {
+	{
 		result = dump_register(device, register_number);
 		if( result != AIRSPY_SUCCESS ) {
 			break;
 		}
 	}
-	
+
 	return result;
 }
 
-int write_register(
-	struct airspy_device* device,
-	const uint8_t register_number,
-	const uint8_t register_value
-) {
+int write_register(struct airspy_device* device, const uint8_t register_number, const uint8_t register_value)
+{
 	int result = AIRSPY_SUCCESS;
 	result = airspy_r820t_write(device, register_number, register_value);
-	
+
 	if( result == AIRSPY_SUCCESS ) {
 		printf("0x%02X -> [%3d]\n", register_value, register_number);
 	} else {
 		printf("airspy_r820t_write() failed: %s (%d)\n", airspy_error_name(result), result);
 	}
-	
+
 	return result;
 }
 
-/*
-<prog> entering r82xx_set_pll for 100000000 Hz
-<prog> i2c_write(0x10, 0x84);
-<prog> i2c_write(0x1a, 0x22);
-<prog> i2c_write(0x12, 0x80);
-<prog> i2c_write(0x10, 0x84);
-<prog> i2c_write(0x14, 0xc4);
-<prog> i2c_write(0x12, 0x80);
-<prog> i2c_write(0x16, 0xff);
-<prog> i2c_write(0x15, 0xfe);
-<prog> i2c_write(0x1a, 0x2a);
-*/
-
 #define CONF_R820T_START_REG  (5)
-uint8_t conf_r820t[] = 
+uint8_t conf_r820t[] =
 {
 	0x12, 0x32, 0x75,       /* 05 to 07 */
 	0xc0, 0x40, 0xd6, 0x6c, /* 08 to 11 */
@@ -130,25 +114,25 @@ uint8_t conf_r820t[] =
 
 int configure_registers(struct airspy_device* device)
 {
-  int i, j;
+	int i, j;
 	uint8_t register_number;
 	uint8_t register_value;
 	int result = AIRSPY_SUCCESS;
 
-  j=0;
-  for(i=0; i<sizeof(conf_r820t); i++)
-  {
-    register_number = i + CONF_R820T_START_REG;
-    register_value = conf_r820t[j];
-    j++;
-    result = airspy_r820t_write(device, register_number, register_value);
-    if( result == AIRSPY_SUCCESS )
-    {
-      printf("0x%02X -> [%3d]\n", register_value, register_number);
-    } else {
-      printf("airspy_r820t_write() failed: %s (%d)\n", airspy_error_name(result), result);
-      return result;
-    }
+	j=0;
+	for(i=0; i<sizeof(conf_r820t); i++)
+	{
+		register_number = i + CONF_R820T_START_REG;
+		register_value = conf_r820t[j];
+		j++;
+		result = airspy_r820t_write(device, register_number, register_value);
+		if( result == AIRSPY_SUCCESS )
+		{
+			printf("0x%02X -> [%3d]\n", register_value, register_number);
+		} else {
+			printf("airspy_r820t_write() failed: %s (%d)\n", airspy_error_name(result), result);
+			return result;
+		}
 	}
 	return result;
 }
@@ -167,7 +151,7 @@ int main(int argc, char** argv) {
 		printf("airspy_init() failed: %s (%d)\n", airspy_error_name(result), result);
 		return -1;
 	}
-	
+
 	result = airspy_open(&device);
 	if( result ) {
 		printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
@@ -179,14 +163,14 @@ int main(int argc, char** argv) {
 		case 'n':
 			result = parse_int(optarg, &register_number);
 			break;
-		
+
 		case 'w':
 			result = parse_int(optarg, &register_value);
 			if( result == AIRSPY_SUCCESS ) {
 				result = write_register(device, register_number, register_value);
 			}
 			break;
-		
+
 		case 'r':
 			if( register_number == REGISTER_INVALID ) {
 				result = dump_registers(device);
@@ -202,21 +186,22 @@ int main(int argc, char** argv) {
 		default:
 			usage();
 		}
-		
+
 		if( result != AIRSPY_SUCCESS )
-    {
+		{
 			printf("argument error: %s (%d)\n", airspy_error_name(result), result);
 			break;
 		}
 	}
-	
+
 	result = airspy_close(device);
 	if( result ) {
 		printf("airspy_close() failed: %s (%d)\n", airspy_error_name(result), result);
 		return -1;
 	}
-	
+
 	airspy_exit();
-	
+
 	return 0;
 }
+

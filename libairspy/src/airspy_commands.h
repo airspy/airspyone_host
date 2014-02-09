@@ -29,11 +29,6 @@ extern "C"
 {
 #endif
 
-typedef enum {
-	RECEIVER_MODE_OFF = 0,
-	RECEIVER_MODE_RX = 1
-} receiver_mode_t;
-
 #define AIRSPY_CMD_MAX (18)
 
 // Commands (usb vendor request) shared between Firmware and Host.

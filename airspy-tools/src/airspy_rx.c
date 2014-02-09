@@ -85,8 +85,8 @@ int gettimeofday(struct timeval *tv, void* ignored)
 #define FREQ_ONE_MHZ (1000000ul)
 
 #define DEFAULT_FREQ_HZ (900000000ul) /* 900MHz */
-#define FREQ_MIN_HZ	  (24000000ul) /* 24MHz */
-#define FREQ_MAX_HZ	(1750000000ul) /* 1750MHz */
+#define FREQ_MIN_HZ (24000000ul) /* 24MHz */
+#define FREQ_MAX_HZ (1750000000ul) /* 1750MHz */
 
 #define SAMPLES_TO_XFER_MAX (0x8000000000000000ull) /* Max value */
 
@@ -107,21 +107,21 @@ typedef struct
 #define FormatID "fmt "   /* chunkID for Format Chunk. NOTE: There is a space at the end of this ID. */
 
 typedef struct {
-	char		chunkID[4]; /* 'fmt ' */
-	uint32_t	chunkSize; /* 16 fixed */
+	char chunkID[4]; /* 'fmt ' */
+	uint32_t chunkSize; /* 16 fixed */
 
-	uint16_t	wFormatTag; /* 1 fixed */
-	uint16_t	wChannels;  /* 2 fixed */
-	uint32_t	dwSamplesPerSec; /* Freq Hz sampling */
-	uint32_t	dwAvgBytesPerSec; /* Freq Hz sampling x 2 */
-	uint16_t	wBlockAlign; /* 2 fixed */
-	uint16_t	wBitsPerSample; /* 16 fixed */
+	uint16_t wFormatTag; /* 1 fixed */
+	uint16_t wChannels;  /* 2 fixed */
+	uint32_t dwSamplesPerSec; /* Freq Hz sampling */
+	uint32_t dwAvgBytesPerSec; /* Freq Hz sampling x 2 */
+	uint16_t wBlockAlign; /* 2 fixed */
+	uint16_t wBitsPerSample; /* 16 fixed */
 } t_FormatChunk;
 
 typedef struct 
 {
-		char		chunkID[4]; /* 'data' */
-		uint32_t	chunkSize; /* Size of data in bytes */
+		char chunkID[4]; /* 'data' */
+		uint32_t chunkSize; /* Size of data in bytes */
 	/* Samples I(8bits) then Q(8bits), I, Q ... */
 } t_DataChunk;
 
@@ -143,17 +143,17 @@ t_wav_file_hdr wave_file_hdr =
 	/* t_FormatChunk */
 	{
 		{ 'f', 'm', 't', ' ' }, /* char		chunkID[4];  */
-		16, /* uint32_t	chunkSize; */
-		1, /* uint16_t	wFormatTag; 1 fixed */
-		2, /* uint16_t	wChannels; 2 fixed */
-		0, /* uint32_t	dwSamplesPerSec; Freq Hz sampling to update later */
-		0, /* uint32_t	dwAvgBytesPerSec; Freq Hz sampling x 2 to update later */
-		4, /* uint16_t	wBlockAlign; 4 fixed */
-		16, /* uint16_t	wBitsPerSample; 16 fixed */
+		16, /* uint32_t chunkSize; */
+		1, /* uint16_t wFormatTag; 1 fixed */
+		2, /* uint16_t wChannels; 2 fixed */
+		0, /* uint32_t dwSamplesPerSec; Freq Hz sampling to update later */
+		0, /* uint32_t dwAvgBytesPerSec; Freq Hz sampling x 2 to update later */
+		4, /* uint16_t wBlockAlign; 4 fixed */
+		16, /* uint16_t wBitsPerSample; 16 fixed */
 	},
 	/* t_DataChunk */
 	{
-	    { 'd', 'a', 't', 'a' }, /* char chunkID[4]; */
+		{ 'd', 'a', 't', 'a' }, /* char chunkID[4]; */
 		0, /* uint32_t	chunkSize; to update later */
 	}
 };
@@ -173,7 +173,7 @@ unsigned int mixer_gain=8;
 static float
 TimevalDiff(const struct timeval *a, const struct timeval *b)
 {
-	 return (a->tv_sec - b->tv_sec) + 1e-6f * (a->tv_usec - b->tv_usec);
+	return (a->tv_sec - b->tv_sec) + 1e-6f * (a->tv_usec - b->tv_usec);
 }
 
 int parse_u64(char* s, uint64_t* const value) {
@@ -203,7 +203,8 @@ int parse_u64(char* s, uint64_t* const value) {
 	}
 }
 
-int parse_u32(char* s, uint32_t* const value) {
+int parse_u32(char* s, uint32_t* const value)
+{
 	uint_fast8_t base = 10;
 	char* s_end;
 	uint64_t ulong_value;
@@ -361,7 +362,8 @@ int rx_callback(airspy_transfer_t* transfer)
 #define MAX_MIXER_GAIN (15)
 #define MAX_LNA_GAIN (14)
 
-static void usage() {
+static void usage(void)
+{
 	printf("Usage:\n");
 	printf("\t-r <filename> # Receive data into file.\n");
 	printf("\t-w # Receive data into file with WAV header and automatic name.\n");
