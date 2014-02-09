@@ -141,9 +141,9 @@ void iqconverter_int16_process(iqconveter_int16_t *cnv, int16_t *samples, int le
 	for (i = 0; i < len; i += 4)
 	{
 		samples[i + 0] = -samples[i + 0];
-		samples[i + 1] = samples[i + 1] >> 1;
+		samples[i + 1] = -samples[i + 1] >> 1;
 		//samples[i + 2] = samples[i + 2];
-		samples[i + 3] = -samples[i + 3] >> 1;
+		samples[i + 3] = samples[i + 3] >> 1;
 	}
 
 	fir_interleaved(cnv, samples, len);

@@ -298,9 +298,9 @@ void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len)
 	for (i = 0; i < len; i += 4)
 	{
 		samples[i + 0] = -samples[i + 0];
-		samples[i + 1] = samples[i + 1] * 0.5f;
+		samples[i + 1] = -samples[i + 1] * 0.5f;
 		//samples[i + 2] = samples[i + 2];
-		samples[i + 3] = -samples[i + 3] * 0.5f;
+		samples[i + 3] = samples[i + 3] * 0.5f;
 	}
 
 	fir_interleaved(cnv, samples, len);
