@@ -24,11 +24,11 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 #include <libusb.h>
 #include <pthread.h>
 
 #include "airspy.h"
+#include "airspy_commands.h"
 #include "iqconverter_float.h"
 #include "iqconverter_int16.h"
 #include "filters.h"

@@ -27,8 +27,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
 #include <stdint.h>
 
-#include "airspy_commands.h"
-
 #ifdef _WIN32
    #define ADD_EXPORTS
    
