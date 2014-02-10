@@ -84,7 +84,7 @@ typedef struct airspy_device
 } airspy_device_t;
 
 static const uint16_t airspy_usb_vid = 0x1d50;
-static const uint16_t airspy_usb_pid = 0x604b;
+static const uint16_t airspy_usb_pid = 0x60a1;
 
 #define USB_PRODUCT_ID (2)
 #define STR_DESCRIPTOR_SIZE (250)
