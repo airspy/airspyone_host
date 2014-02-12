@@ -32,6 +32,8 @@ AirSpy: http://www.airspy.com
 
 ###For Cygwin:
 
+`cd host`
+
 `cmake -G "Unix Makefiles" -DCMAKE_LEGACY_CYGWIN_WIN32=1 -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
 
 `make`
@@ -40,6 +42,8 @@ AirSpy: http://www.airspy.com
 
 
 ###For Mingw:
+
+`cd host`
 
 Normal version:
 
@@ -61,23 +65,27 @@ Debug version:
 ###Prerequisite for Linux(Ubuntu or other):
 
 
-`apt-get install g++`
+`sudo apt-get install g++`
 
-`apt-get install cmake`
+`sudo apt-get install cmake`
 
-`apt-get install libusb-1.0`
+`sudo apt-get install libusb-1.0`
 
 
 ###Build host software on Linux:
 
+`cd host`
 
-`cmake ./`
+`cmake ./ -DINSTALL_UDEV_RULES=ON`
 
 `make`
 
-`make install`
+`sudo make install`
+
+`sudo ldconfig`
 
 ##Clean Cmake temporary files/dirs:
+
 `cd host`
 
 `find . -name CMakeCache.txt -type f -exec rm -v {} \;`
