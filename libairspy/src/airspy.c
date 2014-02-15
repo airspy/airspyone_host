@@ -49,8 +49,8 @@ typedef int bool;
 #define TO_LE(x) x
 #endif
 
-#define SAMPLE_SHIFT 2
-#define SAMPLE_SCALE (1.0f / (2048 << SAMPLE_SHIFT))
+#define SAMPLE_SHIFT 3
+#define SAMPLE_SCALE (1.0f / (1 << (15 - SAMPLE_SHIFT)))
 #define SAMPLE_RESOLUTION 12
 
 typedef struct {
@@ -73,9 +73,7 @@ typedef struct airspy_device
 	uint32_t buffer_size;
 	uint32_t total_dropped_samples;
 	unsigned char *received_buffer;
-#if (USE_PACKING)
 	uint16_t *raw_samples;
-#endif
 	void *output_buffer;
 	iqconveter_float_t *cnv_f;
 	iqconveter_int16_t *cnv_i;
@@ -94,9 +92,6 @@ unsigned char str_desc[STR_DESCRIPTOR_SIZE+1] = { 0 };
 const unsigned char str_product_airspy[STR_PRODUCT_AIRSPY_SIZE] = { 'A', 'I', 'R', 'S', 'P', 'Y' };
 
 static libusb_context* g_libusb_context = NULL;
-
-static float g_sample_float_lut[1 << SAMPLE_RESOLUTION];
-static int16_t g_sample_int16_lut[1 << SAMPLE_RESOLUTION];
 
 static int cancel_transfers(airspy_device_t* device)
 {
@@ -137,9 +132,7 @@ static int free_transfers(airspy_device_t* device)
 
 		free(device->output_buffer);
 		free(device->received_buffer);
-#if (USE_PACKING)
 		free(device->raw_samples);
-#endif
 	}
 
 	return AIRSPY_SUCCESS;
@@ -160,15 +153,15 @@ static int allocate_transfers(airspy_device_t* const device)
 
 #if (USE_PACKING)
 		sample_count = device->buffer_size / 2 * UNPACKED_SIZE / PACKET_SIZE;
+#else
+		sample_count = device->buffer_size / 2;
+#endif
 
 		device->raw_samples = (uint16_t *) malloc(sample_count * sizeof(uint16_t));
 		if (device->raw_samples == NULL)
 		{
 			return AIRSPY_ERROR_NO_MEM;
 		}
-#else
-		sample_count = device->buffer_size / 2;
-#endif
 
 		device->output_buffer = (float *) malloc(sample_count * sizeof(float));
 		if (device->output_buffer == NULL)
@@ -243,7 +236,7 @@ static void convert_samples_int16(uint16_t *src, int16_t *dest, int count)
 	int i;
 	for (i = 0; i < count; i++)
 	{
-		dest[i] = src[i] - 2048;
+		dest[i] = (src[i] - 2048) << SAMPLE_SHIFT;
 	}
 }
 
@@ -280,10 +273,10 @@ static void unpack_samples(unsigned char *src, uint16_t *dest, int len)
 
 		dest[0] = packed_data[0] & 0xFFF;
 		dest[1] = (packed_data[0] >> 12) & 0xFFF;
-		dest[2] = ((packed_data[0] >> 24) | (packed_data[1] << 8)) & 0xFF0;
+		dest[2] = (packed_data[0] >> 24) | ((packed_data[1] << 8) & 0xF00);
 		dest[3] = (packed_data[1] >> 4) & 0xFFF;
 		dest[4] = (packed_data[1] >> 16) & 0xFFF;
-		dest[5] = ((packed_data[1] >> 28) | (packed_data[2] << 4)) & 0xFF0;
+		dest[5] = (packed_data[1] >> 28) | ((packed_data[2] << 4) & 0xFF0);
 		dest[6] = (packed_data[2] >> 8) & 0xFFF;
 		dest[7] = packed_data[2] >> 20;
 
@@ -297,7 +290,6 @@ static void unpack_samples(unsigned char *src, uint16_t *dest, int len)
 static void* conversion_threadproc(void *arg)
 {
 	int sample_count;
-	uint16_t *raw_samples;
 	airspy_device_t* device = (airspy_device_t*)arg;
 	airspy_transfer_t transfer;
 
@@ -312,10 +304,9 @@ static void* conversion_threadproc(void *arg)
 
 #if (USE_PACKING)
 		unpack_samples(device->received_buffer, device->raw_samples, device->buffer_size);
-		raw_samples = device->raw_samples;
 		sample_count = device->buffer_size / 2 * UNPACKED_SIZE / PACKET_SIZE;
 #else
-		raw_samples = (uint16_t *) device->received_buffer;
+		memcpy(device->raw_samples, device->received_buffer, device->buffer_size);
 		sample_count = device->buffer_size / 2;
 #endif
 
@@ -324,23 +315,23 @@ static void* conversion_threadproc(void *arg)
 		switch (device->sample_type)
 		{
 		case AIRSPY_SAMPLE_FLOAT32_IQ:
-			convert_samples_float(raw_samples, (float *) device->output_buffer, sample_count);
+			convert_samples_float(device->raw_samples, (float *) device->output_buffer, sample_count);
 			iqconverter_float_process(device->cnv_f, (float *) device->output_buffer, sample_count);
 			sample_count /= 2;
 			break;
 
 		case AIRSPY_SAMPLE_FLOAT32_REAL:
-			convert_samples_float(raw_samples, (float *) device->output_buffer, sample_count);
+			convert_samples_float(device->raw_samples, (float *) device->output_buffer, sample_count);
 			break;
 
 		case AIRSPY_SAMPLE_INT16_IQ:
-			convert_samples_int16(raw_samples, (int16_t *) device->output_buffer, sample_count);
+			convert_samples_int16(device->raw_samples, (int16_t *) device->output_buffer, sample_count);
 			iqconverter_int16_process(device->cnv_i, (int16_t *) device->output_buffer, sample_count);
 			sample_count /= 2;
 			break;
 
 		case AIRSPY_SAMPLE_INT16_REAL:
-			convert_samples_int16(raw_samples, (int16_t *) device->output_buffer, sample_count);
+			convert_samples_int16(device->raw_samples, (int16_t *) device->output_buffer, sample_count);
 			break;
 		}
 
@@ -380,7 +371,7 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 		device->streaming = false;
 		return;
 	}
-		
+
 	if (!device->data_available)
 	{
 		memcpy(device->received_buffer, usb_transfer->buffer, usb_transfer->length);
@@ -412,9 +403,10 @@ static void* transfer_threadproc(void* arg)
 	while (device->streaming && !device->stop_requested)
 	{
 		error = libusb_handle_events_timeout_completed(g_libusb_context, &timeout, NULL);
-		if (error != 0)
+		if (error < 0)
 		{
-			device->streaming = false;
+			if (error != LIBUSB_ERROR_INTERRUPTED)
+				device->streaming = false;
 		}
 	}
 
@@ -490,12 +482,6 @@ int ADDCALL airspy_init(void)
 {
 	int i;
 	const int libusb_error = libusb_init(&g_libusb_context);
-
-	for (i = 0; i < 4096; i++)
-	{
-		g_sample_float_lut[i] = (i - 2048) * SAMPLE_SCALE;
-		g_sample_int16_lut[i] = (i - 2048) << SAMPLE_SHIFT;
-	}
 
 	if( libusb_error != 0 )
 	{
