@@ -859,6 +859,9 @@ int ADDCALL airspy_board_id_read(airspy_device_t* device, uint8_t* value)
 int ADDCALL airspy_version_string_read(airspy_device_t* device, char* version, uint8_t length)
 {
 	int result;
+
+	memset(version, 0, length);
+
 	result = libusb_control_transfer(
 		device->usb_device,
 		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
@@ -866,14 +869,14 @@ int ADDCALL airspy_version_string_read(airspy_device_t* device, char* version, u
 		0,
 		0,
 		(unsigned char*)version,
-		length,
+		(length-1),
 		0);
 
 	if (result < 0)
 	{
 		return AIRSPY_ERROR_LIBUSB;
-	} else {
-		version[result] = '\0';
+	} else
+	{
 		return AIRSPY_SUCCESS;
 	}
 }

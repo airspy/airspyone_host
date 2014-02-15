@@ -10,7 +10,7 @@ AirSpy: http://www.airspy.com
 
 ##How to build host software on Windows:
 
-###Prerequisite for cygwin or mingw:
+###Prerequisites for cygwin or mingw:
 
 * cmake-2.8.12.1 or more see http://www.cmake.org/cmake/resources/software.html
 * libusbx-1.0.18 or more see http://sourceforge.net/projects/libusbx/files/latest/download?source=files
@@ -32,63 +32,71 @@ AirSpy: http://www.airspy.com
 
 ###For Cygwin:
 
-`cmake -G "Unix Makefiles" -DCMAKE_LEGACY_CYGWIN_WIN32=1 -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
+`cd host`
+
+`mkdir build`
+
+`cd build`
+
+`cmake ../ -G "Unix Makefiles" -DCMAKE_LEGACY_CYGWIN_WIN32=1 -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
 
 `make`
 
 `make install`
 
 
-###For Mingw:
+###For MinGW:
+
+`cd host`
+
+`mkdir build`
+
+`cd build`
 
 Normal version:
 
 * 
-`cmake -G "MSYS Makefiles" -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
+`cmake ../ -G "MSYS Makefiles" -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
 
 Debug version:
 
 * 
-`cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Debug -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
+`cmake ../ -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Debug -DLIBUSB_INCLUDE_DIR=/usr/local/include/libusb-1.0/`
 
 `make`
 
 `make install`
 
 
-##How to build host software on Linux:
+##How to build the host software on Linux:
 
-###Prerequisite for Linux(Ubuntu or other):
+###Prerequisites for Linux (Debian/Ubuntu):
 
 
-`apt-get install g++`
-
-`apt-get install cmake`
-
-`apt-get install libusb-1.0`
+`sudo apt-get install build-essential cmake libusb-1.0-0-dev`
 
 
 ###Build host software on Linux:
 
+`cd host`
 
-`cmake ./`
+`mkdir build`
+
+`cd build`
+
+`cmake ../ -DINSTALL_UDEV_RULES=ON`
 
 `make`
 
-`make install`
+`sudo make install`
 
-##Clean Cmake temporary files/dirs:
-`cd host`
+`sudo ldconfig`
 
-`find . -name CMakeCache.txt -type f -exec rm -v {} \;`
+##Clean CMake temporary files/dirs:
 
-`find . -name cmake_install.cmake -type f -exec rm -v {} \;`
+`cd host/build`
 
-`find . -name cmake_uninstall.cmake -type f -exec rm -v {} \;`
-
-`find . -name Makefile -type f -exec rm -v {} \;`
-
-`find . -type d -name CMakeFiles -exec rm -rf {} +`
+`rm -rf *`
 
 
 ##Principal authors:
