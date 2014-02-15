@@ -41,7 +41,7 @@ AirSpy: http://www.airspy.com
 `make install`
 
 
-###For Mingw:
+###For MinGW:
 
 `cd host`
 
@@ -60,23 +60,23 @@ Debug version:
 `make install`
 
 
-##How to build host software on Linux:
+##How to build the host software on Linux:
 
-###Prerequisite for Linux(Ubuntu or other):
+###Prerequisites for Linux (Debian/Ubuntu):
 
 
-`sudo apt-get install g++`
-
-`sudo apt-get install cmake`
-
-`sudo apt-get install libusb-1.0`
+`sudo apt-get install build-essential cmake libusb-1.0-0-dev`
 
 
 ###Build host software on Linux:
 
 `cd host`
 
-`cmake ./ -DINSTALL_UDEV_RULES=ON`
+`mkdir build`
+
+`cd build `
+
+`cmake ../ -DINSTALL_UDEV_RULES=ON`
 
 `make`
 
@@ -84,19 +84,11 @@ Debug version:
 
 `sudo ldconfig`
 
-##Clean Cmake temporary files/dirs:
+##Clean CMake temporary files/dirs:
 
-`cd host`
+`cd host/build`
 
-`find . -name CMakeCache.txt -type f -exec rm -v {} \;`
-
-`find . -name cmake_install.cmake -type f -exec rm -v {} \;`
-
-`find . -name cmake_uninstall.cmake -type f -exec rm -v {} \;`
-
-`find . -name Makefile -type f -exec rm -v {} \;`
-
-`find . -type d -name CMakeFiles -exec rm -rf {} +`
+`rm -rf *`
 
 
 ##Principal authors:
