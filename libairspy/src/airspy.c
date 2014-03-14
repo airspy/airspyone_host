@@ -365,21 +365,18 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 	{
 		return;
 	}
-
-	if (usb_transfer->status != LIBUSB_TRANSFER_COMPLETED)
+	
+	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
-		device->streaming = false;
-		return;
-	}
+		if (!device->data_available)
+		{
+			memcpy(device->received_buffer, usb_transfer->buffer, usb_transfer->length);
+			device->data_available = true;
 
-	if (!device->data_available)
-	{
-		memcpy(device->received_buffer, usb_transfer->buffer, usb_transfer->length);
-		device->data_available = true;
-
-		pthread_mutex_lock(&device->conversion_mp);
-		pthread_cond_signal(&device->conversion_cv);
-		pthread_mutex_unlock(&device->conversion_mp);
+			pthread_mutex_lock(&device->conversion_mp);
+			pthread_cond_signal(&device->conversion_cv);
+			pthread_mutex_unlock(&device->conversion_mp);
+		}
 	}
 
 	if (libusb_submit_transfer(usb_transfer) != 0)
@@ -480,7 +477,6 @@ extern "C"
 
 int ADDCALL airspy_init(void)
 {
-	int i;
 	const int libusb_error = libusb_init(&g_libusb_context);
 
 	if( libusb_error != 0 )

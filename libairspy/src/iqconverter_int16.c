@@ -45,15 +45,17 @@ iqconveter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
 	size_t buffer_size;
 	iqconveter_int16_t *cnv = (iqconveter_int16_t *) _aligned_malloc(sizeof(iqconveter_int16_t), DEFAULT_ALIGNMENT);
 
+	cnv->old_x = 0;
+	cnv->old_y = 0;
 	cnv->delay_index = 0;
 	cnv->fir_index = 0;
 	cnv->len = len / 2 + 1;
 
-	buffer_size = cnv->len * sizeof(int16_t);
+	buffer_size = cnv->len * sizeof(int32_t);
 
-	cnv->fir_kernel = (int16_t *) _aligned_malloc(buffer_size, DEFAULT_ALIGNMENT);
-	cnv->fir_queue = (int16_t *) _aligned_malloc(buffer_size * SIZE_FACTOR, DEFAULT_ALIGNMENT);
-	cnv->delay_line = (int16_t *) _aligned_malloc(buffer_size / 2, DEFAULT_ALIGNMENT);
+	cnv->fir_kernel = (int32_t *) _aligned_malloc(buffer_size, DEFAULT_ALIGNMENT);
+	cnv->fir_queue = (int32_t *) _aligned_malloc(buffer_size * SIZE_FACTOR, DEFAULT_ALIGNMENT);
+	cnv->delay_line = (int16_t *) _aligned_malloc(buffer_size / 4, DEFAULT_ALIGNMENT);
 
 	for (i = 0; i < cnv->len; i++)
 	{
@@ -77,7 +79,7 @@ static void fir_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len)
 	int j;
 	int fir_index;
 	int fir_len;
-	int16_t *queue;
+	int32_t *queue;
 	int32_t acc;
 
 	fir_len = cnv->len;
@@ -100,7 +102,7 @@ static void fir_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len)
 		if (--fir_index < 0)
 		{
 			fir_index = cnv->len * (SIZE_FACTOR - 1);
-			memcpy(cnv->fir_queue + fir_index + 1, cnv->fir_queue, (cnv->len - 1) * sizeof(int16_t));
+			memcpy(cnv->fir_queue + fir_index + 1, cnv->fir_queue, (cnv->len - 1) * sizeof(int32_t));
 		}
 
 		samples[i] = acc >> 15;
@@ -134,7 +136,35 @@ static void delay_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len
 	cnv->delay_index = index;
 }
 
-void iqconverter_int16_process(iqconveter_int16_t *cnv, int16_t *samples, int len)
+static void remove_dc(iqconveter_int16_t *cnv, int16_t *samples, int len)
+{
+	int i;
+	int32_t u, old_e;
+	int16_t x, y, w, s, old_x, old_y;
+
+	old_x = cnv->old_x;
+	old_y = cnv->old_y;
+	old_e = cnv->old_e;
+
+	for (i = 0; i < len; i++)
+	{
+		x = samples[i];
+		w = x - old_x;
+		u = old_e + (int32_t) old_y * 32100;
+		s = u >> 15;
+		y = w + s;
+		old_e = u - (s << 15);
+		old_x = x;
+		old_y = y;		
+		samples[i] = y;
+	}
+
+	cnv->old_x = old_x;
+	cnv->old_y = old_y;
+	cnv->old_e = old_e;
+}
+
+static void translate_fs_4(iqconveter_int16_t *cnv, int16_t *samples, int len)
 {
 	int i;
 
@@ -148,4 +178,10 @@ void iqconverter_int16_process(iqconveter_int16_t *cnv, int16_t *samples, int le
 
 	fir_interleaved(cnv, samples, len);
 	delay_interleaved(cnv, samples + 1, len);
+}
+
+void iqconverter_int16_process(iqconveter_int16_t *cnv, int16_t *samples, int len)
+{
+	remove_dc(cnv, samples, len);
+	translate_fs_4(cnv, samples, len);
 }

@@ -29,8 +29,11 @@ typedef struct {
 	int len;
 	int fir_index;
 	int delay_index;
-	int16_t *fir_kernel;
-	int16_t *fir_queue;
+	int16_t old_x;
+	int16_t old_y;
+	int32_t old_e;
+	int32_t *fir_kernel;
+	int32_t *fir_queue;
 	int16_t *delay_line;
 } iqconveter_int16_t;
 

@@ -285,15 +285,23 @@ static void delay_interleaved(iqconveter_float_t *cnv, float *samples, int len)
 	cnv->delay_index = index;
 }
 
-void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len)
+static void remove_dc(iqconveter_float_t *cnv, float *samples, int len)
 {
 	int i;
+	float dc = cnv->dc;
 
 	for (i = 0; i < len; i++)
 	{
-		cnv->dc += HPF_COEFF * (samples[i] - cnv->dc);
-		samples[i] -= cnv->dc;
+		dc += HPF_COEFF * (samples[i] - dc);
+		samples[i] -= dc;
 	}
+
+	cnv->dc = dc;
+}
+
+static void translate_fs_4(iqconveter_float_t *cnv, float *samples, int len)
+{
+	int i;
 
 	for (i = 0; i < len; i += 4)
 	{
@@ -305,4 +313,10 @@ void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len)
 
 	fir_interleaved(cnv, samples, len);
 	delay_interleaved(cnv, samples + 1, len);
+}
+
+void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len)
+{
+	remove_dc(cnv, samples, len);
+	translate_fs_4(cnv, samples, len);
 }
