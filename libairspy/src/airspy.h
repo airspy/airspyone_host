@@ -1,8 +1,8 @@
 /*
 Copyright (c) 2012, Jared Boone <jared@sharebrained.com>
 Copyright (c) 2013, Michael Ossmann <mike@ossmann.com>
-Copyright (c) 2013, Benjamin Vernoux <bvernoux@airspy.com>
-Copyright (C) 2013, Youssef Touil <youssef@airspy.com>
+Copyright (c) 2013/2014, Benjamin Vernoux <bvernoux@airspy.com>
+Copyright (C) 2013/2014, Youssef Touil <youssef@airspy.com>
 
 All rights reserved.
 
@@ -122,8 +122,6 @@ extern ADDAPI int ADDCALL airspy_r820t_read(struct airspy_device* device, uint8_
 
 extern ADDAPI int ADDCALL airspy_gpio_write(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value);
 extern ADDAPI int ADDCALL airspy_gpio_read(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value);
-
-extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
  
 extern ADDAPI int ADDCALL airspy_spiflash_erase(struct airspy_device* device);
 extern ADDAPI int ADDCALL airspy_spiflash_write(struct airspy_device* device, const uint32_t address, const uint16_t length, unsigned char* const data);
@@ -142,6 +140,8 @@ extern ADDAPI int ADDCALL airspy_set_mixer_gain(struct airspy_device* device, ui
 extern ADDAPI int ADDCALL airspy_set_vga_gain(struct airspy_device* device, uint8_t value);
 extern ADDAPI int ADDCALL airspy_set_lna_agc(struct airspy_device* device, uint8_t value);
 extern ADDAPI int ADDCALL airspy_set_mixer_agc(struct airspy_device* device, uint8_t value);
+
+extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
 
 extern ADDAPI const char* ADDCALL airspy_error_name(enum airspy_error errcode);
 extern ADDAPI const char* ADDCALL airspy_board_id_name(enum airspy_board_id board_id);

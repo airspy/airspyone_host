@@ -624,8 +624,30 @@ int ADDCALL airspy_close(airspy_device_t* device)
 
 int ADDCALL airspy_set_samplerate(airspy_device_t* device, airspy_samplerate_t samplerate)
 {
-	// Todo: Nice stuff goes here
-	return 0;
+	int result;
+	uint8_t retval;
+	uint8_t length;
+
+
+	length = 1;
+
+	result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_SET_SAMPLERATE,
+		0,
+		samplerate,
+		&retval,
+		length,
+		0
+	);
+
+	if (result < length)
+	{
+		return AIRSPY_ERROR_LIBUSB;
+	} else {
+		return AIRSPY_SUCCESS;
+	}
 }
 
 int ADDCALL airspy_set_receiver_mode(airspy_device_t* device, receiver_mode_t value)
@@ -767,22 +789,56 @@ int ADDCALL airspy_r820t_write(airspy_device_t* device, uint8_t register_number,
 	}
 }
 
-int ADDCALL airspy_gpio_write(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value)
-{
-	// Todo: Nice stuff goes here
-	return 0;
-}
-
 int ADDCALL airspy_gpio_read(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value)
 {
-	// Todo: Nice stuff goes here
-	return 0;
+	int result;
+  uint8_t port_pin;
+
+  port_pin = ((uint8_t)port) << 5;
+  port_pin = port_pin | pin;
+
+	result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_GPIO_READ,
+		0,
+		port_pin,
+		(unsigned char*) value,
+		1,
+		0);
+
+	if( result < 1 )
+	{
+		return AIRSPY_ERROR_LIBUSB;
+	} else {
+		return AIRSPY_SUCCESS;
+	}
 }
 
-int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value)
+int ADDCALL airspy_gpio_write(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value)
 {
-	// Todo: Nice stuff goes here
-	return 0;
+	int result;
+  uint8_t port_pin;
+
+  port_pin = ((uint8_t)port) << 5;
+  port_pin = port_pin | pin;
+
+	result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_GPIO_WRITE,
+		value,
+		port_pin,
+		NULL,
+		0,
+		0);
+
+	if( result != 0 )
+	{
+		return AIRSPY_ERROR_LIBUSB;
+	} else {
+		return AIRSPY_SUCCESS;
+	}
 }
 
 int ADDCALL airspy_spiflash_erase(airspy_device_t* device)
@@ -1095,6 +1151,28 @@ int ADDCALL airspy_set_mixer_agc(airspy_device_t* device, uint8_t value)
 	);
 
 	if (result < length)
+	{
+		return AIRSPY_ERROR_LIBUSB;
+	} else {
+		return AIRSPY_SUCCESS;
+	}
+}
+
+int ADDCALL airspy_set_rf_bias(airspy_device_t* device, uint8_t value)
+{
+	int result;
+	result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_SET_RF_BIAS_CMD,
+		value,
+		0,
+		NULL,
+		0,
+		0
+	);
+
+	if( result != 0 )
 	{
 		return AIRSPY_ERROR_LIBUSB;
 	} else {
