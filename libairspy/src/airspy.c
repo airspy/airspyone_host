@@ -28,7 +28,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include <pthread.h>
 
 #include "airspy.h"
-#include "airspy_commands.h"
 #include "iqconverter_float.h"
 #include "iqconverter_int16.h"
 #include "filters.h"
@@ -622,6 +621,13 @@ int ADDCALL airspy_close(airspy_device_t* device)
 	return result;
 }
 
+
+int ADDCALL airspy_set_samplerate(airspy_device_t* device, airspy_samplerate_t samplerate)
+{
+	// Todo: Nice stuff goes here
+	return 0;
+}
+
 int ADDCALL airspy_set_receiver_mode(airspy_device_t* device, receiver_mode_t value)
 {
 	int result;
@@ -759,6 +765,18 @@ int ADDCALL airspy_r820t_write(airspy_device_t* device, uint8_t register_number,
 	} else {
 		return AIRSPY_SUCCESS;
 	}
+}
+
+int ADDCALL airspy_gpio_write(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value)
+{
+	// Todo: Nice stuff goes here
+	return 0;
+}
+
+int ADDCALL airspy_gpio_read(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value)
+{
+	// Todo: Nice stuff goes here
+	return 0;
 }
 
 int ADDCALL airspy_spiflash_erase(airspy_device_t* device)

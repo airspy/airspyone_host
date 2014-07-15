@@ -26,6 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #define __AIRSPY_H__
 
 #include <stdint.h>
+#include "airspy_commands.h"
 
 #ifdef _WIN32
    #define ADD_EXPORTS
@@ -46,6 +47,11 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   #define ADDAPI
   #define ADDCALL
 
+#endif
+
+#ifdef __cplusplus
+extern "C"
+{
 #endif
 
 enum airspy_error
@@ -71,10 +77,10 @@ enum airspy_board_id
 
 enum airspy_sample_type
 {
-	AIRSPY_SAMPLE_FLOAT32_IQ = 0, /* 2*32bits(float) per sample */
-	AIRSPY_SAMPLE_FLOAT32_REAL = 1, /* 1*32bits(float) per sample */
-	AIRSPY_SAMPLE_INT16_IQ = 2, /* 2*16bits per sample */
-	AIRSPY_SAMPLE_INT16_REAL = 3 /* 1*16bits per sample */
+	AIRSPY_SAMPLE_FLOAT32_IQ = 0,   /* 2 * 32bit float per sample */
+	AIRSPY_SAMPLE_FLOAT32_REAL = 1, /* 1 * 32bit float per sample */
+	AIRSPY_SAMPLE_INT16_IQ = 2,     /* 2 * 16bit int per sample */
+	AIRSPY_SAMPLE_INT16_REAL = 3    /* 1 * 16bit int per sample */
 };
 
 struct airspy_device;
@@ -87,11 +93,6 @@ typedef struct {
 	enum airspy_sample_type sample_type;
 } airspy_transfer_t, airspy_transfer;
 
-typedef enum {
-	RECEIVER_MODE_OFF = 0,
-	RECEIVER_MODE_RX = 1
-} receiver_mode_t;
-
 typedef struct {
 	uint32_t part_id[2];
 	uint32_t serial_no[4];
@@ -99,16 +100,13 @@ typedef struct {
 
 typedef int (*airspy_sample_block_cb_fn)(airspy_transfer* transfer);
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 extern ADDAPI int ADDCALL airspy_init();
 extern ADDAPI int ADDCALL airspy_exit();
  
 extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
+
+extern ADDAPI int ADDCALL airspy_set_samplerate(struct airspy_device* device, airspy_samplerate_t samplerate);
  
 extern ADDAPI int ADDCALL airspy_start_rx(struct airspy_device* device, airspy_sample_block_cb_fn callback, void* rx_ctx);
 extern ADDAPI int ADDCALL airspy_stop_rx(struct airspy_device* device);
@@ -121,6 +119,9 @@ extern ADDAPI int ADDCALL airspy_si5351c_read(struct airspy_device* device, uint
 
 extern ADDAPI int ADDCALL airspy_r820t_write(struct airspy_device* device, uint8_t register_number, uint8_t value);
 extern ADDAPI int ADDCALL airspy_r820t_read(struct airspy_device* device, uint8_t register_number, uint8_t* value);
+
+extern ADDAPI int ADDCALL airspy_gpio_write(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value);
+extern ADDAPI int ADDCALL airspy_gpio_read(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value);
  
 extern ADDAPI int ADDCALL airspy_spiflash_erase(struct airspy_device* device);
 extern ADDAPI int ADDCALL airspy_spiflash_write(struct airspy_device* device, const uint32_t address, const uint16_t length, unsigned char* const data);
