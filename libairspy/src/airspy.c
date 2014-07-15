@@ -779,6 +779,12 @@ int ADDCALL airspy_gpio_read(airspy_device_t* device, airspy_gpio_port_t port, a
 	return 0;
 }
 
+int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value)
+{
+	// Todo: Nice stuff goes here
+	return 0;
+}
+
 int ADDCALL airspy_spiflash_erase(airspy_device_t* device)
 {
 	int result;
