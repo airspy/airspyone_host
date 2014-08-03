@@ -25,8 +25,12 @@ THE SOFTWARE.
 
 #include <stdint.h>
 
+#define IQCONVERTER_NZEROS 2
+#define IQCONVERTER_NPOLES 2
+
 typedef struct {
-	float dc;
+	float x_delay[IQCONVERTER_NZEROS + 1];
+	float y_delay[IQCONVERTER_NPOLES + 1];
 	int len;
 	int fir_index;
 	int delay_index;

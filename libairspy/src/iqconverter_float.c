@@ -62,7 +62,16 @@ iqconveter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 	size_t buffer_size;
 	iqconveter_float_t *cnv = (iqconveter_float_t *) _aligned_malloc(sizeof(iqconveter_float_t), DEFAULT_ALIGNMENT);
 
-	cnv->dc = 0.0f;
+	for (i = 0; i < IQCONVERTER_NZEROS; i++)
+	{
+		cnv->x_delay[i] = 0.0f;
+	}
+
+	for (i = 0; i < IQCONVERTER_NPOLES; i++)
+	{
+		cnv->y_delay[i] = 0.0f;
+	}
+
 	cnv->delay_index = 0;
 	cnv->fir_index = 0;
 	cnv->len = len / 2 + 1;
@@ -285,18 +294,22 @@ static void delay_interleaved(iqconveter_float_t *cnv, float *samples, int len)
 	cnv->delay_index = index;
 }
 
-static void remove_dc(iqconveter_float_t *cnv, float *samples, int len)
+#define SCALE   (1.0/1.158384440e+00)
+
+static void apply_bpf(iqconveter_float_t *cnv, float *samples, int len)
 {
 	int i;
-	float dc = cnv->dc;
 
 	for (i = 0; i < len; i++)
 	{
-		dc += HPF_COEFF * (samples[i] - dc);
-		samples[i] -= dc;
+		cnv->x_delay[0] = cnv->x_delay[1];
+		cnv->x_delay[1] = cnv->x_delay[2];
+		cnv->x_delay[2] = samples[i] * SCALE;
+		cnv->y_delay[0] = cnv->y_delay[1];
+		cnv->y_delay[1] = cnv->y_delay[2];
+		cnv->y_delay[2] = cnv->x_delay[2] - cnv->x_delay[0] + 0.7265425280f * cnv->y_delay[0];
+		samples[i] = cnv->y_delay[2];
 	}
-
-	cnv->dc = dc;
 }
 
 static void translate_fs_4(iqconveter_float_t *cnv, float *samples, int len)
@@ -317,6 +330,6 @@ static void translate_fs_4(iqconveter_float_t *cnv, float *samples, int len)
 
 void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len)
 {
-	remove_dc(cnv, samples, len);
+	apply_bpf(cnv, samples, len);
 	translate_fs_4(cnv, samples, len);
 }
