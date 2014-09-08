@@ -48,9 +48,11 @@ typedef int bool;
 #define TO_LE(x) x
 #endif
 
-#define SAMPLE_SHIFT 3
-#define SAMPLE_SCALE (1.0f / (1 << (15 - SAMPLE_SHIFT)))
 #define SAMPLE_RESOLUTION 12
+#define SAMPLE_ENCAPSULATION 16
+
+#define SAMPLE_SHIFT (SAMPLE_ENCAPSULATION - SAMPLE_RESOLUTION)
+#define SAMPLE_SCALE (1.0f / (1 << (15 - SAMPLE_SHIFT)))
 
 typedef struct {
 	uint32_t freq_hz;
@@ -235,7 +237,7 @@ static void convert_samples_int16(uint16_t *src, int16_t *dest, int count)
 	int i;
 	for (i = 0; i < count; i++)
 	{
-		dest[i] = (src[i] - 2048) << SAMPLE_SHIFT;
+		dest[i] = ((src[i] & 0xFFF) - 2048) << SAMPLE_SHIFT;
 	}
 }
 
@@ -244,7 +246,7 @@ static void convert_samples_float(uint16_t *src, float *dest, int count)
 	int i;
 	for (i = 0; i < count; i++)
 	{
-		dest[i] = (src[i] - 2048) * SAMPLE_SCALE;
+		dest[i] = ((src[i] & 0xFFF) - 2048) * SAMPLE_SCALE;
 	}
 }
 
