@@ -62,12 +62,12 @@ iqconveter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 	size_t buffer_size;
 	iqconveter_float_t *cnv = (iqconveter_float_t *) _aligned_malloc(sizeof(iqconveter_float_t), DEFAULT_ALIGNMENT);
 
-	for (i = 0; i < IQCONVERTER_NZEROS; i++)
+	for (i = 0; i < IQCONVERTER_NZEROS + 1; i++)
 	{
 		cnv->x_delay[i] = 0.0f;
 	}
 
-	for (i = 0; i < IQCONVERTER_NPOLES; i++)
+	for (i = 0; i < IQCONVERTER_NPOLES + 1; i++)
 	{
 		cnv->y_delay[i] = 0.0f;
 	}
