@@ -27,46 +27,49 @@ extern "C"
 {
 #endif
 
-typedef enum {
+typedef enum
+{
 	RECEIVER_MODE_OFF = 0,
 	RECEIVER_MODE_RX = 1
 } receiver_mode_t;
 
-typedef enum
+typedef enum 
 {
-	AIRSPY_SAMPLERATE_10MSPS = 0, /* 10MHz IQ */
-	AIRSPY_SAMPLERATE_8MSPS = 1,  /*  8MHz IQ */
-	AIRSPY_SAMPLERATE_4MSPS = 2,  /*  4MHz IQ */
-	AIRSPY_SAMPLERATE_3MSPS = 3   /*  3MHz IQ */
+	AIRSPY_SAMPLERATE_10MSPS = 0, /* 12bits 10MHz IQ */
+	AIRSPY_SAMPLERATE_2_5MSPS = 1, /* 12bits 2.5MHz IQ */
+	AIRSPY_SAMPLERATE_END = 2 /* End index for sample rate (corresponds to number of samplerate) */
 } airspy_samplerate_t;
-
-#define AIRSPY_CMD_MAX (22)
+#define AIRSPY_CONF_CMD_SHIFT_BIT (3) // Up to 3bits=8 samplerates (airspy_samplerate_t enum shall not exceed 7)
 
 // Commands (usb vendor request) shared between Firmware and Host.
-typedef enum {
-	AIRSPY_INVALID = 0,
-	AIRSPY_RECEIVER_MODE = 1,
-	AIRSPY_SI5351C_WRITE = 2,
-	AIRSPY_SI5351C_READ = 3,
-	AIRSPY_R820T_WRITE = 4,
-	AIRSPY_R820T_READ = 5,
-	AIRSPY_SPIFLASH_ERASE = 6,
-	AIRSPY_SPIFLASH_WRITE = 7,
-	AIRSPY_SPIFLASH_READ = 8,
-	AIRSPY_BOARD_ID_READ = 9,
-	AIRSPY_VERSION_STRING_READ = 10,
+#define AIRSPY_CMD_MAX (24)
+typedef enum
+{
+	AIRSPY_INVALID                    = 0 ,
+	AIRSPY_RECEIVER_MODE              = 1 ,
+	AIRSPY_SI5351C_WRITE              = 2 ,
+	AIRSPY_SI5351C_READ               = 3 ,
+	AIRSPY_R820T_WRITE                = 4 ,
+	AIRSPY_R820T_READ                 = 5 ,
+	AIRSPY_SPIFLASH_ERASE             = 6 ,
+	AIRSPY_SPIFLASH_WRITE             = 7 ,
+	AIRSPY_SPIFLASH_READ              = 8 ,
+	AIRSPY_BOARD_ID_READ              = 9 ,
+	AIRSPY_VERSION_STRING_READ        = 10,
 	AIRSPY_BOARD_PARTID_SERIALNO_READ = 11,
-	AIRSPY_SET_SAMPLERATE = 12,
-	AIRSPY_SET_FREQ = 13,
-	AIRSPY_SET_LNA_GAIN = 14,
-	AIRSPY_SET_MIXER_GAIN = 15,
-	AIRSPY_SET_VGA_GAIN = 16,
-	AIRSPY_SET_LNA_AGC = 17,
-	AIRSPY_SET_MIXER_AGC = 18,
-	AIRSPY_MS_VENDOR_CMD = 19,
-	AIRSPY_SET_RF_BIAS_CMD = 20,
-	AIRSPY_GPIO_WRITE = 21,
-	AIRSPY_GPIO_READ = AIRSPY_CMD_MAX
+	AIRSPY_SET_SAMPLERATE             = 12,
+	AIRSPY_SET_FREQ                   = 13,
+	AIRSPY_SET_LNA_GAIN               = 14,
+	AIRSPY_SET_MIXER_GAIN             = 15,
+	AIRSPY_SET_VGA_GAIN               = 16,
+	AIRSPY_SET_LNA_AGC                = 17,
+	AIRSPY_SET_MIXER_AGC              = 18,
+	AIRSPY_MS_VENDOR_CMD              = 19,
+	AIRSPY_SET_RF_BIAS_CMD            = 20,
+	AIRSPY_GPIO_WRITE                 = 21,
+	AIRSPY_GPIO_READ                  = 22,
+	AIRSPY_GPIODIR_WRITE              = 23,
+	AIRSPY_GPIODIR_READ               = AIRSPY_CMD_MAX
 } airspy_vendor_request;
 
 typedef enum
