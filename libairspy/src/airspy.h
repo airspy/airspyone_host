@@ -120,9 +120,12 @@ extern ADDAPI int ADDCALL airspy_si5351c_read(struct airspy_device* device, uint
 extern ADDAPI int ADDCALL airspy_r820t_write(struct airspy_device* device, uint8_t register_number, uint8_t value);
 extern ADDAPI int ADDCALL airspy_r820t_read(struct airspy_device* device, uint8_t register_number, uint8_t* value);
 
+/* Parameter value shall be 0=clear GPIO or 1=set GPIO */
 extern ADDAPI int ADDCALL airspy_gpio_write(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value);
+/* Parameter value corresponds to GPIO state 0 or 1 */
 extern ADDAPI int ADDCALL airspy_gpio_read(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value);
  
+/* Parameter value shall be 0=GPIO Input direction or 1=GPIO Output direction */
 extern ADDAPI int ADDCALL airspy_gpiodir_write(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value);
 extern ADDAPI int ADDCALL airspy_gpiodir_read(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value);
 
@@ -137,13 +140,30 @@ extern ADDAPI int ADDCALL airspy_board_partid_serialno_read(struct airspy_device
 
 extern ADDAPI int ADDCALL airspy_set_sample_type(struct airspy_device* device, enum airspy_sample_type sample_type);
 
+/* Parameter freq_hz shall be between 24000000(24MHz) and 1900000000(1.9GHz) */
 extern ADDAPI int ADDCALL airspy_set_freq(struct airspy_device* device, const uint32_t freq_hz);
+
+/* Parameter value shall be between 0 and 15 */
 extern ADDAPI int ADDCALL airspy_set_lna_gain(struct airspy_device* device, uint8_t value);
+
+/* Parameter value shall be between 0 and 15 */
 extern ADDAPI int ADDCALL airspy_set_mixer_gain(struct airspy_device* device, uint8_t value);
+
+/* Parameter value shall be between 0 and 15 */
 extern ADDAPI int ADDCALL airspy_set_vga_gain(struct airspy_device* device, uint8_t value);
+
+/* Parameter value:
+  0=Disable LNA Automatic Gain Control
+  1=Enable LNA Automatic Gain Control
+*/
 extern ADDAPI int ADDCALL airspy_set_lna_agc(struct airspy_device* device, uint8_t value);
+/* Parameter value:
+  0=Disable MIXER Automatic Gain Control
+  1=Enable MIXER Automatic Gain Control
+*/
 extern ADDAPI int ADDCALL airspy_set_mixer_agc(struct airspy_device* device, uint8_t value);
 
+/* Parameter value shall be 0=Disable BiasT or 1=Enable BiasT */
 extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
 
 extern ADDAPI const char* ADDCALL airspy_error_name(enum airspy_error errcode);
