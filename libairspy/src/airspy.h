@@ -140,7 +140,7 @@ extern ADDAPI int ADDCALL airspy_board_partid_serialno_read(struct airspy_device
 
 extern ADDAPI int ADDCALL airspy_set_sample_type(struct airspy_device* device, enum airspy_sample_type sample_type);
 
-/* Parameter freq_hz shall be between 24000000(24MHz) and 1900000000(1.9GHz) */
+/* Parameter freq_hz shall be between 24000000(24MHz) and 1750000000(1.75GHz) */
 extern ADDAPI int ADDCALL airspy_set_freq(struct airspy_device* device, const uint32_t freq_hz);
 
 /* Parameter value shall be between 0 and 15 */
