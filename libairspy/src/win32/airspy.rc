@@ -1,0 +1,40 @@
+#include <winver.h>
+#include "../airspy.h"
+
+#ifdef GCC_WINDRES
+VS_VERSION_INFO		VERSIONINFO
+#else
+VS_VERSION_INFO		VERSIONINFO	MOVEABLE IMPURE LOADONCALL DISCARDABLE
+#endif
+  FILEVERSION		AIRSPY_VER_MAJOR,AIRSPY_VER_MINOR,AIRSPY_VER_REVISION,0
+  PRODUCTVERSION	AIRSPY_VER_MAJOR,AIRSPY_VER_MINOR,AIRSPY_VER_REVISION,0
+  FILEFLAGSMASK		VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+  FILEFLAGS		1
+#else
+  FILEFLAGS		0
+#endif
+  FILEOS		VOS__WINDOWS32
+  FILETYPE		VFT_DLL
+  FILESUBTYPE		0	// not used
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    //language ID = U.S. English, char set = Windows, Multilingual
+    BEGIN
+      VALUE "FileDescription",	"AirSpy library\0"
+      VALUE "FileVersion",	AIRSPY_VERSION "\0"
+      VALUE "InternalName",	"airspy.dll\0"
+      VALUE "LegalCopyright",	"(C) 2013-2014 AirSpy\0"
+      VALUE "OriginalFilename",	"airspy.dll\0"
+      VALUE "ProductName",	"airspy\0"
+      VALUE "ProductVersion",	AIRSPY_VERSION "\0"
+      VALUE "Comments",		"For more information visit http://www.airspy.com\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1252
+  END
+END

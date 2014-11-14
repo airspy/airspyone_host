@@ -29,9 +29,27 @@
 set(c_sources ${CMAKE_CURRENT_SOURCE_DIR}/airspy.c ${CMAKE_CURRENT_SOURCE_DIR}/iqconverter_float.c  ${CMAKE_CURRENT_SOURCE_DIR}/iqconverter_int16.c CACHE INTERNAL "List of C sources")
 set(c_headers ${CMAKE_CURRENT_SOURCE_DIR}/airspy.h ${CMAKE_CURRENT_SOURCE_DIR}/airspy_commands.h ${CMAKE_CURRENT_SOURCE_DIR}/iqconverter_float.h ${CMAKE_CURRENT_SOURCE_DIR}/iqconverter_int16.h ${CMAKE_CURRENT_SOURCE_DIR}/filters.h CACHE INTERNAL "List of C headers")
 
+if(MINGW)
+    # This gets us DLL resource information when compiling on MinGW.
+    if(NOT CMAKE_RC_COMPILER)
+        set(CMAKE_RC_COMPILER windres.exe)
+    endif()
+
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/airspyrc.obj
+                       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/airspy.h
+                       COMMAND ${CMAKE_RC_COMPILER}
+                            -D GCC_WINDRES
+                            -I ${CMAKE_CURRENT_SOURCE_DIR}
+                            -I ${CMAKE_CURRENT_BINARY_DIR}
+                            -o ${CMAKE_CURRENT_BINARY_DIR}/airspyrc.obj
+                            -i ${CMAKE_CURRENT_SOURCE_DIR}/win32/airspy.rc)
+    set(AIRSPY_DLL_SRCS ${CMAKE_CURRENT_BINARY_DIR}/airspyrc.obj)
+endif(MINGW)
+
 # Dynamic library
-add_library(airspy SHARED ${c_sources})
-set_target_properties(airspy PROPERTIES VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.0 SOVERSION 0)
+add_library(airspy SHARED ${c_sources} ${AIRSPY_DLL_SRCS})
+set_target_properties(airspy PROPERTIES VERSION ${AIRSPY_VER_MAJOR}.${AIRSPY_VER_MINOR}.${AIRSPY_VER_REVISION})
+set_target_properties(airspy PROPERTIES SOVERSION 0)
 
 # Static library
 add_library(airspy-static STATIC ${c_sources})

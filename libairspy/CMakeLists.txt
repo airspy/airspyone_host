@@ -1,5 +1,5 @@
 # Copyright 2012 Jared Boone
-# Copyright 2013 Benjamin Vernoux
+# Copyright 2013/2014 Benjamin Vernoux
 #
 # This file is part of AirSpy (based on HackRF project).
 #
@@ -23,8 +23,8 @@
 
 cmake_minimum_required(VERSION 2.8)
 project(libairspy C)
-set(MAJOR_VERSION 0)
-set(MINOR_VERSION 2)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/airspy.h _airspy_h_contents)
+
 set(PACKAGE libairspy)
 set(VERSION_STRING ${MAJOR_VERSION}.${MINOR_VERSION})
 set(VERSION ${VERSION_STRING})

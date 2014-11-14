@@ -29,6 +29,9 @@ add_library(libgetopt_static STATIC
 )
 endif()
 
+add_executable(airspy_lib_version airspy_lib_version.c)
+install(TARGETS airspy_lib_version RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
+
 add_executable(airspy_si5351c airspy_si5351c.c)
 install(TARGETS airspy_si5351c RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
 
@@ -55,6 +58,7 @@ if(MSVC)
 LIST(APPEND TOOLS_LINK_LIBS libgetopt_static)
 endif()
 
+target_link_libraries(airspy_lib_version ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_si5351c ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_r820t ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_spiflash ${TOOLS_LINK_LIBS})

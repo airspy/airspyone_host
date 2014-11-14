@@ -54,6 +54,11 @@ typedef int bool;
 #define SAMPLE_SHIFT (SAMPLE_ENCAPSULATION - SAMPLE_RESOLUTION)
 #define SAMPLE_SCALE (1.0f / (1 << (15 - SAMPLE_SHIFT)))
 
+#define SERIAL_NUMBER_UNUSED (0ULL)
+
+#define USB_PRODUCT_ID (2)
+#define STR_DESCRIPTOR_SIZE (250)
+
 typedef struct {
 	uint32_t freq_hz;
 } set_freq_params_t;
@@ -80,19 +85,15 @@ typedef struct airspy_device
 	iqconveter_int16_t *cnv_i;
 	void* ctx;
 	enum airspy_sample_type sample_type;
+	libusb_context* usb_context;
 } airspy_device_t;
 
 static const uint16_t airspy_usb_vid = 0x1d50;
 static const uint16_t airspy_usb_pid = 0x60a1;
 
-#define USB_PRODUCT_ID (2)
-#define STR_DESCRIPTOR_SIZE (250)
-unsigned char str_desc[STR_DESCRIPTOR_SIZE+1] = { 0 };
-
 #define STR_PRODUCT_AIRSPY_SIZE (6)
-const unsigned char str_product_airspy[STR_PRODUCT_AIRSPY_SIZE] = { 'A', 'I', 'R', 'S', 'P', 'Y' };
-
-static libusb_context* g_libusb_context = NULL;
+const unsigned char str_product_airspy[STR_PRODUCT_AIRSPY_SIZE] = 
+{ 'A', 'I', 'R', 'S', 'P', 'Y' };
 
 static int cancel_transfers(airspy_device_t* device)
 {
@@ -400,7 +401,7 @@ static void* transfer_threadproc(void* arg)
 
 	while (device->streaming && !device->stop_requested)
 	{
-		error = libusb_handle_events_timeout_completed(g_libusb_context, &timeout, NULL);
+		error = libusb_handle_events_timeout_completed(device->usb_context, &timeout, NULL);
 		if (error < 0)
 		{
 			if (error != LIBUSB_ERROR_INTERRUPTED)
@@ -471,90 +472,137 @@ static int create_io_threads(airspy_device_t* device, airspy_sample_block_cb_fn 
 	return AIRSPY_SUCCESS;
 }
 
-#ifdef __cplusplus
-extern "C"
+static void airspy_open_exit(airspy_device_t* device)
 {
-#endif
-
-int ADDCALL airspy_init(void)
-{
-	const int libusb_error = libusb_init(&g_libusb_context);
-
-	if( libusb_error != 0 )
+	if(device->usb_device != NULL)
 	{
-		return AIRSPY_ERROR_LIBUSB;
-	} else {
-		return AIRSPY_SUCCESS;
+		libusb_release_interface(device->usb_device, 0);
+		libusb_close(device->usb_device);
+		device->usb_device = NULL;
 	}
+	libusb_exit(device->usb_context);
 }
 
-int ADDCALL airspy_exit(void)
-{
-	if( g_libusb_context != NULL )
-	{
-		libusb_exit(g_libusb_context);
-		g_libusb_context = NULL;
-	}
-
-	return AIRSPY_SUCCESS;
-}
-
-int ADDCALL airspy_open(airspy_device_t** device)
+static libusb_device_handle* airspy_open_device(libusb_context* usb_context,
+																								int* ret,
+																								uint16_t vid,
+																								uint16_t pid,
+																								uint64_t serial_number)
 {
 	int result;
 	libusb_device_handle* usb_device;
-	airspy_device_t* lib_device;
+	unsigned char str_desc[STR_DESCRIPTOR_SIZE+1] = { 0 };
 
-	if( device == NULL )
+	if(serial_number == SERIAL_NUMBER_UNUSED)
 	{
-		return AIRSPY_ERROR_INVALID_PARAM;
-	}
-	// TODO: Do proper scanning of available devices, searching for
-	// unit serial number (if specified?).
-	usb_device = libusb_open_device_with_vid_pid(g_libusb_context, airspy_usb_vid, airspy_usb_pid);
-	if( usb_device == NULL )
-	{
-		return AIRSPY_ERROR_NOT_FOUND;
-	}
+		// TODO: Do proper scanning of available devices.
+		usb_device = libusb_open_device_with_vid_pid(usb_context, vid, pid);
+		if( usb_device == NULL )
+		{
+			*ret = AIRSPY_ERROR_NOT_FOUND;
+			return NULL;
+		}
 
-	/* Get Product Descriptor */
-	result = libusb_get_string_descriptor_ascii(usb_device, USB_PRODUCT_ID, str_desc, STR_DESCRIPTOR_SIZE);
-	if( result != 0 )
-	{
-		/* Check Product corresponds to AIRSPY product */
-		result = memcmp(str_desc, str_product_airspy, STR_PRODUCT_AIRSPY_SIZE);
-		if(result != 0)
+		/* Get Product Descriptor */
+		result = libusb_get_string_descriptor_ascii(usb_device, USB_PRODUCT_ID, str_desc, STR_DESCRIPTOR_SIZE);
+		if( result != 0 )
+		{
+			/* Check Product corresponds to AIRSPY product */
+			result = memcmp(str_desc, str_product_airspy, STR_PRODUCT_AIRSPY_SIZE);
+			if(result != 0)
+			{
+				libusb_close(usb_device);
+				*ret = AIRSPY_ERROR_NOT_FOUND;
+				return NULL;
+			}
+		}else
 		{
 			libusb_close(usb_device);
-			return AIRSPY_ERROR_NOT_FOUND;
+			*ret = AIRSPY_ERROR_LIBUSB;
+			return NULL;
 		}
 	}else
 	{
-		libusb_close(usb_device);
-		return AIRSPY_ERROR_LIBUSB;
+		// TODO: Do proper scanning of available devices, searching unit with specified serial number.
+		usb_device = libusb_open_device_with_vid_pid(usb_context, vid, pid);
+		if(usb_device == NULL)
+		{
+			*ret = AIRSPY_ERROR_NOT_FOUND;
+			return NULL;
+		}
+
+		/* Get Product Descriptor */
+		result = libusb_get_string_descriptor_ascii(usb_device, USB_PRODUCT_ID, str_desc, STR_DESCRIPTOR_SIZE);
+		if( result != 0 )
+		{
+			/* Check Product corresponds to AIRSPY product */
+			result = memcmp(str_desc, str_product_airspy, STR_PRODUCT_AIRSPY_SIZE);
+			if(result != 0)
+			{
+				libusb_close(usb_device);
+				*ret = AIRSPY_ERROR_NOT_FOUND;
+				return NULL;
+			}
+		}else
+		{
+			libusb_close(usb_device);
+			*ret = AIRSPY_ERROR_LIBUSB;
+			return NULL;
+		}
 	}
 
 	result = libusb_set_configuration(usb_device, 1);
 	if( result != 0 )
 	{
 		libusb_close(usb_device);
-		return AIRSPY_ERROR_LIBUSB;
+		*ret = AIRSPY_ERROR_LIBUSB;
+		return NULL;
 	}
 
 	result = libusb_claim_interface(usb_device, 0);
 	if( result != 0 )
 	{
 		libusb_close(usb_device);
+		*ret = AIRSPY_ERROR_LIBUSB;
+		return NULL;
+	}
+
+	*ret = AIRSPY_SUCCESS;
+	return usb_device;
+}
+
+static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
+{
+	libusb_device_handle* usb_device;
+	airspy_device_t* lib_device;
+	int libusb_error;
+	int result;
+
+	*device = NULL;
+	lib_device = NULL;
+	lib_device = (airspy_device_t*)malloc(sizeof(*lib_device));
+	if(lib_device == NULL)
+	{
+		return AIRSPY_ERROR_NO_MEM;
+	}
+
+	libusb_error = libusb_init(&lib_device->usb_context);
+	if(libusb_error != 0)
+	{
+		free(lib_device);
 		return AIRSPY_ERROR_LIBUSB;
 	}
 
-	lib_device = NULL;
-	lib_device = (airspy_device_t*)malloc(sizeof(*lib_device));
-	if( lib_device == NULL )
+	usb_device = airspy_open_device(lib_device->usb_context,
+																	&result,
+																	airspy_usb_vid,
+																	airspy_usb_pid,
+																	serial_number);
+	if(usb_device == NULL)
 	{
-		libusb_release_interface(usb_device, 0);
-		libusb_close(usb_device);
-		return AIRSPY_ERROR_NO_MEM;
+		libusb_exit(lib_device->usb_context);
+		free(lib_device);
+		return result;
 	}
 
 	lib_device->usb_device = usb_device;
@@ -575,9 +623,8 @@ int ADDCALL airspy_open(airspy_device_t** device)
 	result = allocate_transfers(lib_device);
 	if( result != 0 )
 	{
+		airspy_open_exit(lib_device);
 		free(lib_device);
-		libusb_release_interface(usb_device, 0);
-		libusb_close(usb_device);
 		return AIRSPY_ERROR_NO_MEM;
 	}
 
@@ -592,22 +639,56 @@ int ADDCALL airspy_open(airspy_device_t** device)
 	return AIRSPY_SUCCESS;
 }
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+void ADDCALL airspy_lib_version(airspy_lib_version_t* lib_version)
+{
+	lib_version->major_version = AIRSPY_VER_MAJOR;
+	lib_version->minor_version = AIRSPY_VER_MINOR;
+	lib_version->revision = AIRSPY_VER_REVISION;
+}
+
+/* airspy_init() deprecated */
+int ADDCALL airspy_init(void)
+{
+	return AIRSPY_SUCCESS;
+}
+
+/* airspy_exit() deprecated */
+int ADDCALL airspy_exit(void)
+{
+	return AIRSPY_SUCCESS;
+}
+
+
+int ADDCALL airspy_open_sn(airspy_device_t** device, uint64_t serial_number)
+{
+	int result;
+
+	result = airspy_open_init(device, serial_number);
+	return result;
+}
+
+int ADDCALL airspy_open(airspy_device_t** device)
+{
+	int result;
+
+	result = airspy_open_init(device, SERIAL_NUMBER_UNUSED);
+	return result;
+}
+
 int ADDCALL airspy_close(airspy_device_t* device)
 {
 	int result;
 
 	result = AIRSPY_SUCCESS;
 	
-	if (device != NULL)
+	if(device != NULL)
 	{
 		result = airspy_stop_rx(device);
-
-		if( device->usb_device != NULL )
-		{
-			libusb_release_interface(device->usb_device, 0);
-			libusb_close(device->usb_device);
-			device->usb_device = NULL;
-		}
 
 		free_transfers(device);
 
@@ -617,6 +698,7 @@ int ADDCALL airspy_close(airspy_device_t* device)
 		pthread_cond_destroy(&device->conversion_cv);
 		pthread_mutex_destroy(&device->conversion_mp);
 
+		airspy_open_exit(device);
 		free(device);
 	}
 
@@ -794,10 +876,10 @@ int ADDCALL airspy_r820t_write(airspy_device_t* device, uint8_t register_number,
 int ADDCALL airspy_gpio_read(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value)
 {
 	int result;
-  uint8_t port_pin;
+	uint8_t port_pin;
 
-  port_pin = ((uint8_t)port) << 5;
-  port_pin = port_pin | pin;
+	port_pin = ((uint8_t)port) << 5;
+	port_pin = port_pin | pin;
 
 	result = libusb_control_transfer(
 		device->usb_device,
@@ -820,10 +902,10 @@ int ADDCALL airspy_gpio_read(airspy_device_t* device, airspy_gpio_port_t port, a
 int ADDCALL airspy_gpio_write(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value)
 {
 	int result;
-  uint8_t port_pin;
+	uint8_t port_pin;
 
-  port_pin = ((uint8_t)port) << 5;
-  port_pin = port_pin | pin;
+	port_pin = ((uint8_t)port) << 5;
+	port_pin = port_pin | pin;
 
 	result = libusb_control_transfer(
 		device->usb_device,
@@ -847,10 +929,10 @@ int ADDCALL airspy_gpio_write(airspy_device_t* device, airspy_gpio_port_t port, 
 int ADDCALL airspy_gpiodir_read(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value)
 {
 	int result;
-  uint8_t port_pin;
+	uint8_t port_pin;
 
-  port_pin = ((uint8_t)port) << 5;
-  port_pin = port_pin | pin;
+	port_pin = ((uint8_t)port) << 5;
+	port_pin = port_pin | pin;
 
 	result = libusb_control_transfer(
 		device->usb_device,
@@ -873,10 +955,10 @@ int ADDCALL airspy_gpiodir_read(airspy_device_t* device, airspy_gpio_port_t port
 int ADDCALL airspy_gpiodir_write(airspy_device_t* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value)
 {
 	int result;
-  uint8_t port_pin;
+	uint8_t port_pin;
 
-  port_pin = ((uint8_t)port) << 5;
-  port_pin = port_pin | pin;
+	port_pin = ((uint8_t)port) << 5;
+	port_pin = port_pin | pin;
 
 	result = libusb_control_transfer(
 		device->usb_device,

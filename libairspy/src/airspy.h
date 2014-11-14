@@ -8,10 +8,10 @@ All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
-    Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-    Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the 
+		Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+		Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the 
 	documentation and/or other materials provided with the distribution.
-    Neither the name of AirSpy nor the names of its contributors may be used to endorse or promote products derived from this software
+		Neither the name of AirSpy nor the names of its contributors may be used to endorse or promote products derived from this software
 	without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
@@ -28,24 +28,29 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include <stdint.h>
 #include "airspy_commands.h"
 
-#ifdef _WIN32
-   #define ADD_EXPORTS
-   
-  /* You should define ADD_EXPORTS *only* when building the DLL. */
-  #ifdef ADD_EXPORTS
-    #define ADDAPI __declspec(dllexport)
-  #else
-    #define ADDAPI __declspec(dllimport)
-  #endif
+#define AIRSPY_VERSION "1.0.0"
+#define AIRSPY_VER_MAJOR 1
+#define AIRSPY_VER_MINOR 0
+#define AIRSPY_VER_REVISION 0
 
-  /* Define calling convention in one place, for convenience. */
-  #define ADDCALL __cdecl
+#ifdef _WIN32
+	 #define ADD_EXPORTS
+	 
+	/* You should define ADD_EXPORTS *only* when building the DLL. */
+	#ifdef ADD_EXPORTS
+		#define ADDAPI __declspec(dllexport)
+	#else
+		#define ADDAPI __declspec(dllimport)
+	#endif
+
+	/* Define calling convention in one place, for convenience. */
+	#define ADDCALL __cdecl
 
 #else /* _WIN32 not defined. */
 
-  /* Define with no value on non-Windows OSes. */
-  #define ADDAPI
-  #define ADDCALL
+	/* Define with no value on non-Windows OSes. */
+	#define ADDAPI
+	#define ADDCALL
 
 #endif
 
@@ -98,11 +103,21 @@ typedef struct {
 	uint32_t serial_no[4];
 } airspy_read_partid_serialno_t;
 
+typedef struct {
+	uint32_t major_version;
+	uint32_t minor_version;
+	uint32_t revision;
+} airspy_lib_version_t;
+
 typedef int (*airspy_sample_block_cb_fn)(airspy_transfer* transfer);
 
-extern ADDAPI int ADDCALL airspy_init();
-extern ADDAPI int ADDCALL airspy_exit();
+extern ADDAPI void ADDCALL airspy_lib_version(airspy_lib_version_t* lib_version);
+/* airspy_init() deprecated */
+extern ADDAPI int ADDCALL airspy_init(void);
+/* airspy_exit() deprecated */
+extern ADDAPI int ADDCALL airspy_exit(void);
  
+extern ADDAPI int ADDCALL airspy_open_sn(struct airspy_device** device, uint64_t serial_number);
 extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
 
@@ -153,13 +168,13 @@ extern ADDAPI int ADDCALL airspy_set_mixer_gain(struct airspy_device* device, ui
 extern ADDAPI int ADDCALL airspy_set_vga_gain(struct airspy_device* device, uint8_t value);
 
 /* Parameter value:
-  0=Disable LNA Automatic Gain Control
-  1=Enable LNA Automatic Gain Control
+	0=Disable LNA Automatic Gain Control
+	1=Enable LNA Automatic Gain Control
 */
 extern ADDAPI int ADDCALL airspy_set_lna_agc(struct airspy_device* device, uint8_t value);
 /* Parameter value:
-  0=Disable MIXER Automatic Gain Control
-  1=Enable MIXER Automatic Gain Control
+	0=Disable MIXER Automatic Gain Control
+	1=Enable MIXER Automatic Gain Control
 */
 extern ADDAPI int ADDCALL airspy_set_mixer_agc(struct airspy_device* device, uint8_t value);
 
