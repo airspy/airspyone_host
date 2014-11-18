@@ -21,7 +21,7 @@ AirSpy: http://www.airspy.com
  You shall always execute airspy_tools from Windows command shell and not from Cygwin or Mingw shell because on Cygwin/Mingw
  Ctrl C is not managed correctly and especially for airspy_rx the Ctrl C(abort) will not stop correctly and will corrupt the file.
 
-###For VisualStudio 2013 or later (only to build library):
+###For VisualStudio 2013 or later:
 
 * Download http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z/download
 * Extract libusb-1.0.19.7z to host directory
