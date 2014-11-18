@@ -28,7 +28,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include <stdint.h>
 #include "airspy_commands.h"
 
-#define AIRSPY_VERSION "1.0.0"
+#define AIRSPY_VERSION "1.0.0 Beta"
 #define AIRSPY_VER_MAJOR 1
 #define AIRSPY_VER_MINOR 0
 #define AIRSPY_VER_REVISION 0
@@ -122,13 +122,13 @@ extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
 
 extern ADDAPI int ADDCALL airspy_set_samplerate(struct airspy_device* device, airspy_samplerate_t samplerate);
- 
+
 extern ADDAPI int ADDCALL airspy_start_rx(struct airspy_device* device, airspy_sample_block_cb_fn callback, void* rx_ctx);
 extern ADDAPI int ADDCALL airspy_stop_rx(struct airspy_device* device);
 
 /* return AIRSPY_TRUE if success */
 extern ADDAPI int ADDCALL airspy_is_streaming(struct airspy_device* device);
- 
+
 extern ADDAPI int ADDCALL airspy_si5351c_write(struct airspy_device* device, uint8_t register_number, uint8_t value);
 extern ADDAPI int ADDCALL airspy_si5351c_read(struct airspy_device* device, uint8_t register_number, uint8_t* value);
 
@@ -139,7 +139,7 @@ extern ADDAPI int ADDCALL airspy_r820t_read(struct airspy_device* device, uint8_
 extern ADDAPI int ADDCALL airspy_gpio_write(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value);
 /* Parameter value corresponds to GPIO state 0 or 1 */
 extern ADDAPI int ADDCALL airspy_gpio_read(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value);
- 
+
 /* Parameter value shall be 0=GPIO Input direction or 1=GPIO Output direction */
 extern ADDAPI int ADDCALL airspy_gpiodir_write(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t value);
 extern ADDAPI int ADDCALL airspy_gpiodir_read(struct airspy_device* device, airspy_gpio_port_t port, airspy_gpio_pin_t pin, uint8_t* value);
@@ -147,7 +147,7 @@ extern ADDAPI int ADDCALL airspy_gpiodir_read(struct airspy_device* device, airs
 extern ADDAPI int ADDCALL airspy_spiflash_erase(struct airspy_device* device);
 extern ADDAPI int ADDCALL airspy_spiflash_write(struct airspy_device* device, const uint32_t address, const uint16_t length, unsigned char* const data);
 extern ADDAPI int ADDCALL airspy_spiflash_read(struct airspy_device* device, const uint32_t address, const uint16_t length, unsigned char* data);
-		
+
 extern ADDAPI int ADDCALL airspy_board_id_read(struct airspy_device* device, uint8_t* value);
 extern ADDAPI int ADDCALL airspy_version_string_read(struct airspy_device* device, char* version, uint8_t length);
 

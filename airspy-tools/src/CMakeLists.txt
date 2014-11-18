@@ -29,6 +29,12 @@ add_library(libgetopt_static STATIC
 )
 endif()
 
+add_executable(airspy_gpio airspy_gpio.c)
+install(TARGETS airspy_gpio RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
+
+add_executable(airspy_gpiodir airspy_gpiodir.c)
+install(TARGETS airspy_gpiodir RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
+
 add_executable(airspy_lib_version airspy_lib_version.c)
 install(TARGETS airspy_lib_version RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
 
@@ -58,6 +64,8 @@ if(MSVC)
 LIST(APPEND TOOLS_LINK_LIBS libgetopt_static)
 endif()
 
+target_link_libraries(airspy_gpio ${TOOLS_LINK_LIBS})
+target_link_libraries(airspy_gpiodir ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_lib_version ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_si5351c ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_r820t ${TOOLS_LINK_LIBS})

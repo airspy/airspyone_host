@@ -24,7 +24,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <getopt.h>
+
+#ifndef bool
+typedef int bool;
+#define true 1
+#define false 0
+#endif
 
 static void usage() {
 	printf("\nUsage:\n");
@@ -32,6 +39,7 @@ static void usage() {
 	printf("\t-n, --register <n>: set register number for subsequent read/write operations\n");
 	printf("\t-r, --read: read register specified by last -n argument, or all registers\n");
 	printf("\t-w, --write <v>: write register specified by last -n argument with value <v>\n");
+	printf("\t[-s serial_number_64bits]: Open board with specified 64bits serial number.\n");
 	printf("\nExamples:\n");
 	printf("\t<command> -n 12 -r    # reads from register 12\n");
 	printf("\t<command> -r          # reads all registers\n");
@@ -51,6 +59,33 @@ int parse_int(char* const s, uint8_t* const value) {
 	const long long_value = strtol(s, &s_end, 10);
 	if( (s != s_end) && (*s_end == 0) ) {
 		*value = (uint8_t)long_value;
+		return AIRSPY_SUCCESS;
+	} else {
+		return AIRSPY_ERROR_INVALID_PARAM;
+	}
+}
+
+int parse_u64(char* s, uint64_t* const value) {
+	uint_fast8_t base = 10;
+	char* s_end;
+	uint64_t u64_value;
+
+	if( strlen(s) > 2 ) {
+		if( s[0] == '0' ) {
+			if( (s[1] == 'x') || (s[1] == 'X') ) {
+				base = 16;
+				s += 2;
+			} else if( (s[1] == 'b') || (s[1] == 'B') ) {
+				base = 2;
+				s += 2;
+			}
+		}
+	}
+
+	s_end = s;
+	u64_value = strtoull(s, &s_end, base);
+	if( (s != s_end) && (*s_end == 0) ) {
+		*value = u64_value;
 		return AIRSPY_SUCCESS;
 	} else {
 		return AIRSPY_ERROR_INVALID_PARAM;
@@ -180,26 +215,64 @@ int dump_configuration(struct airspy_device* device) {
 	return AIRSPY_SUCCESS;
 }
 
+bool serial_number = false;
+uint64_t serial_number_val;
+
 int main(int argc, char** argv) {
 	int opt;
 	int n_opt = 0;
 	uint8_t register_number = 0;
 	uint8_t register_value;
 	struct airspy_device* device = NULL;
-	int option_index = 0;
+	int option_index;
+	uint32_t serial_number_msb_val;
+	uint32_t serial_number_lsb_val;
+	int result;
 
-	int result = airspy_init();
+	option_index = 0;
+	while( (opt = getopt_long(argc, argv,  "cn:rw:s:", long_options, &option_index)) != EOF )
+	{
+		switch( opt ) {
+
+		case 's':
+			serial_number = true;
+			result = parse_u64(optarg, &serial_number_val);
+			serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
+			serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
+			printf("Board serial number to open: 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
+			break;
+		}
+	}
+
+	result = airspy_init();
 	if( result ) {
 		printf("airspy_init() failed: %s (%d)\n", airspy_error_name(result), result);
-		return -1;
-	}
-	
-	result = airspy_open(&device);
-	if( result ) {
-		printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
+	if(serial_number == true)
+	{
+		result = airspy_open_sn(&device, serial_number_val);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_open_sn() failed: %s (%d)\n", airspy_error_name(result), result);
+			usage();
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+	}else
+	{
+		result = airspy_open(&device);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
+			usage();
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+	}
+
+	result = AIRSPY_ERROR_OTHER;
+	option_index = 0;
+	optind = 0;
 	while( (opt = getopt_long(argc, argv, "cn:rw:", long_options, &option_index)) != EOF ) {
 		switch( opt ) {
 		case 'n':
@@ -230,16 +303,22 @@ int main(int argc, char** argv) {
 			usage();
 		}
 		
-		if( result != AIRSPY_SUCCESS ) {
-			printf("argument error: %s (%d)\n", airspy_error_name(result), result);
+		if( result != AIRSPY_SUCCESS )
+		{
 			break;
 		}
 	}
-	
+
+	if( result != AIRSPY_SUCCESS )
+	{
+		usage();
+	}
+
 	result = airspy_close(device);
 	if( result ) {
 		printf("airspy_close() failed: %s (%d)\n", airspy_error_name(result), result);
-		return -1;
+		airspy_exit();
+		return EXIT_FAILURE;
 	}
 	
 	airspy_exit();

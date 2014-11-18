@@ -89,6 +89,33 @@ int parse_u32(char* s, uint32_t* const value)
 	}
 }
 
+int parse_u64(char* s, uint64_t* const value) {
+	uint_fast8_t base = 10;
+	char* s_end;
+	uint64_t u64_value;
+
+	if( strlen(s) > 2 ) {
+		if( s[0] == '0' ) {
+			if( (s[1] == 'x') || (s[1] == 'X') ) {
+				base = 16;
+				s += 2;
+			} else if( (s[1] == 'b') || (s[1] == 'B') ) {
+				base = 2;
+				s += 2;
+			}
+		}
+	}
+
+	s_end = s;
+	u64_value = strtoull(s, &s_end, base);
+	if( (s != s_end) && (*s_end == 0) ) {
+		*value = u64_value;
+		return AIRSPY_SUCCESS;
+	} else {
+		return AIRSPY_ERROR_INVALID_PARAM;
+	}
+}
+
 static void usage()
 {
 	printf("Usage:\n");
@@ -96,7 +123,11 @@ static void usage()
 	printf("\t-l, --length <n>: number of bytes to read (default: 0)\n");
 	printf("\t-r <filename>: Read data into file (SPIFI@0x80000000).\n");
 	printf("\t-w <filename>: Write data from file.\n");
+	printf("\t[-s serial_number_64bits]: Open board with specified 64bits serial number.\n");
 }
+
+bool serial_number = false;
+uint64_t serial_number_val;
 
 int main(int argc, char** argv)
 {
@@ -114,8 +145,11 @@ int main(int argc, char** argv)
 	FILE* fd = NULL;
 	bool read = false;
 	bool write = false;
+	uint32_t serial_number_msb_val;
+	uint32_t serial_number_lsb_val;
 
-	while ((opt = getopt_long(argc, argv, "a:l:r:w:", long_options, &option_index)) != EOF) {
+	while ((opt = getopt_long(argc, argv, "a:l:r:w:s:", long_options, &option_index)) != EOF)
+	{
 		switch (opt) {
 		case 'a':
 			result = parse_u32(optarg, &address);
@@ -133,6 +167,14 @@ int main(int argc, char** argv)
 		case 'w':
 			write = true;
 			path = optarg;
+			break;
+
+		case 's':
+			serial_number = true;
+			result = parse_u64(optarg, &serial_number_val);
+			serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
+			serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
+			printf("Board serial number to open: 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
 			break;
 
 		default:
@@ -218,10 +260,22 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	result = airspy_open(&device);
-	if (result != AIRSPY_SUCCESS) {
-		fprintf(stderr, "airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
-		return EXIT_FAILURE;
+	if(serial_number == true)
+	{
+		result = airspy_open_sn(&device, serial_number_val);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_open_sn() failed: %s (%d)\n", airspy_error_name(result), result);
+			usage();
+			return EXIT_FAILURE;
+		}
+	}else
+	{
+		result = airspy_open(&device);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
+			usage();
+			return EXIT_FAILURE;
+		}
 	}
 
 	if (read) 

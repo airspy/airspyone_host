@@ -170,6 +170,8 @@ unsigned int vga_gain=0;
 unsigned int lna_gain=8;
 unsigned int mixer_gain=8;
 
+airspy_read_partid_serialno_t read_partid_serialno;
+
 static float
 TimevalDiff(const struct timeval *a, const struct timeval *b)
 {
@@ -290,11 +292,14 @@ struct timeval time_start;
 struct timeval t_start;
 	
 bool freq = false;
-uint64_t freq_hz;
+uint32_t freq_hz;
 
 bool limit_num_samples = false;
 uint64_t samples_to_xfer = 0;
 uint64_t bytes_to_xfer = 0;
+
+bool serial_number = false;
+uint64_t serial_number_val;
 
 #define RX_BUFFER_SIZE (32*1024*1024)
 uint16_t rx_buffer[RX_BUFFER_SIZE];
@@ -304,7 +309,7 @@ enum airspy_sample_type sample_type = AIRSPY_SAMPLE_INT16_IQ;
 
 int rx_callback(airspy_transfer_t* transfer)
 {
-	int i;
+	uint32_t i;
 	uint32_t bytes_to_write;
 	uint32_t nb_data;
 	uint16_t* rx_samples_u16;
@@ -365,14 +370,15 @@ int rx_callback(airspy_transfer_t* transfer)
 static void usage(void)
 {
 	printf("Usage:\n");
-	printf("\t-r <filename> # Receive data into file.\n");
-	printf("\t-w # Receive data into file with WAV header and automatic name.\n");
-	printf("\t   # This is for SDR# compatibility and may not work with other software.\n");
-	printf("\t[-f set_freq_hz] # Set Freq in Hz between [%luMHz, %luMHz].\n", FREQ_MIN_HZ/FREQ_ONE_MHZ, FREQ_MAX_HZ/FREQ_ONE_MHZ);
-	printf("\t[-v gain] # Set VGA gain, 0-%d (default %d)\n", MAX_VGA_GAIN, vga_gain);
-	printf("\t[-m gain] # Set Mixer gain, 0-%d (default %d)\n", MAX_MIXER_GAIN, mixer_gain);
-	printf("\t[-l gain] # Set LNA gain, 0-%d (default %d)\n", MAX_LNA_GAIN, lna_gain);
-	printf("\t[-n num_samples] # Number of samples to transfer (default is unlimited).\n");
+	printf("\t-r <filename>: Receive data into file.\n");
+	printf("\t-w Receive data into file with WAV header and automatic name.\n");
+	printf("\t   This is for SDR# compatibility and may not work with other software.\n");
+	printf("\t[-f set_freq_hz]: Set Freq in Hz between [%luMHz, %luMHz].\n", FREQ_MIN_HZ/FREQ_ONE_MHZ, FREQ_MAX_HZ/FREQ_ONE_MHZ);
+	printf("\t[-v gain]: Set VGA gain, 0-%d (default %d)\n", MAX_VGA_GAIN, vga_gain);
+	printf("\t[-m gain]: Set Mixer gain, 0-%d (default %d)\n", MAX_MIXER_GAIN, mixer_gain);
+	printf("\t[-l gain]: Set LNA gain, 0-%d (default %d)\n", MAX_LNA_GAIN, lna_gain);
+	printf("\t[-n num_samples]: Number of samples to transfer (default is unlimited).\n");
+	printf("\t[-s serial_number_64bits]: Open board with specified 64bits serial number.\n");
 }
 
 struct airspy_device* device = NULL;
@@ -414,8 +420,10 @@ int main(int argc, char** argv)
 	int exit_code = EXIT_SUCCESS;
 	struct timeval t_end;
 	float time_diff;
+	uint32_t serial_number_msb_val;
+	uint32_t serial_number_lsb_val;
 
-	while( (opt = getopt(argc, argv, "wr:f:n:v:m:l:")) != EOF )
+	while( (opt = getopt(argc, argv, "wr:f:n:v:m:l:s:")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
@@ -431,7 +439,7 @@ int main(int argc, char** argv)
 
 		case 'f':
 			freq = true;
-			result = parse_u64(optarg, &freq_hz);
+			result = parse_u32(optarg, &freq_hz);
 			break;
 
 		case 'v':
@@ -450,6 +458,14 @@ int main(int argc, char** argv)
 			limit_num_samples = true;
 			result = parse_u64(optarg, &samples_to_xfer);
 			bytes_to_xfer = samples_to_xfer * 2;
+			break;
+
+		case 's':
+			serial_number = true;
+			result = parse_u64(optarg, &serial_number_val);
+			serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
+			serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
+			printf("Board serial number to open: 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
 			break;
 
 		default:
@@ -486,7 +502,7 @@ int main(int argc, char** argv)
 	}
 
 	receiver_mode = RECEIVER_MODE_RX;
-
+	
 	if( receive_wav ) 
 	{
 		time (&rawtime);
@@ -504,7 +520,7 @@ int main(int argc, char** argv)
 		usage();
 		return EXIT_FAILURE;
 	}
-	
+
 	if(vga_gain > MAX_VGA_GAIN) {
 		printf("vga_gain out of range\n");
 		usage();
@@ -526,35 +542,60 @@ int main(int argc, char** argv)
 	result = airspy_init();
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_init() failed: %s (%d)\n", airspy_error_name(result), result);
-		usage();
 		return EXIT_FAILURE;
 	}
 
-	result = airspy_open(&device);
-	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
-		usage();
-		return EXIT_FAILURE;
+	if(serial_number == true)
+	{
+		result = airspy_open_sn(&device, serial_number_val);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_open_sn() failed: %s (%d)\n", airspy_error_name(result), result);
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+	}else
+	{
+		result = airspy_open(&device);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
 	}
 	
+	result = airspy_board_partid_serialno_read(device, &read_partid_serialno);
+	if (result != AIRSPY_SUCCESS) {
+			fprintf(stderr, "airspy_board_partid_serialno_read() failed: %s (%d)\n",
+				airspy_error_name(result), result);
+			airspy_close(device);
+			airspy_exit();
+			return EXIT_FAILURE;
+	}
+	printf("Board Serial Number: 0x%08X%08X\n",
+		read_partid_serialno.serial_no[2],
+		read_partid_serialno.serial_no[3]);
+
 	result = airspy_set_sample_type(device, sample_type);
 	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
-		usage();
+		printf("airspy_set_sample_type() failed: %s (%d)\n", airspy_error_name(result), result);
+		airspy_close(device);
+		airspy_exit();
 		return EXIT_FAILURE;
 	}
 
 	fd = fopen(path, "wb");
-
 	if( fd == NULL ) {
 		printf("Failed to open file: %s\n", path);
+		airspy_close(device);
+		airspy_exit();
 		return EXIT_FAILURE;
 	}
 	/* Change fd buffer to have bigger one to store or read data on/to HDD */
 	result = setvbuf(fd , NULL , _IOFBF , FD_BUFFER_SIZE);
 	if( result != 0 ) {
 		printf("setvbuf() failed: %d\n", result);
-		usage();
+		airspy_close(device);
+		airspy_exit();
 		return EXIT_FAILURE;
 	}
 	
@@ -579,30 +620,25 @@ int main(int argc, char** argv)
 	result = airspy_set_vga_gain(device, vga_gain);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_vga_gain() failed: %s (%d)\n", airspy_error_name(result), result);
-		//usage();
-		//return EXIT_FAILURE;
 	}
 
 	printf("call airspy_set_mixer_gain(%u)\n", mixer_gain);
 	result = airspy_set_mixer_gain(device, mixer_gain);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_mixer_gain() failed: %s (%d)\n", airspy_error_name(result), result);
-		//usage();
-		//return EXIT_FAILURE;
 	}
 
 	printf("call airspy_set_lna_gain(%u)\n", lna_gain);
 	result = airspy_set_lna_gain(device, lna_gain);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_lna_gain() failed: %s (%d)\n", airspy_error_name(result), result);
-		//usage();
-		//return EXIT_FAILURE;
 	}
 
 	result = airspy_start_rx(device, rx_callback, NULL);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_start_rx() failed: %s (%d)\n", airspy_error_name(result), result);
-		usage();
+		airspy_close(device);
+		airspy_exit();
 		return EXIT_FAILURE;
 	}
 
@@ -610,10 +646,11 @@ int main(int argc, char** argv)
 	result = airspy_set_freq(device, freq_hz);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_freq() failed: %s (%d)\n", airspy_error_name(result), result);
-		usage();
+		airspy_close(device);
+		airspy_exit();
 		return EXIT_FAILURE;
 	}
-	
+
 	if( limit_num_samples ) {
 		printf("samples_to_xfer %s/%sMio\n", u64toa(samples_to_xfer, &ascii_u64_data1), u64toa((samples_to_xfer/FREQ_ONE_MHZ), &ascii_u64_data2) );
 	}
@@ -689,7 +726,7 @@ int main(int argc, char** argv)
 			/* Get size of file */
 			file_pos = ftell(fd);
 			/* Update Wav Header */
-			wave_file_hdr.hdr.size = file_pos+8;
+			wave_file_hdr.hdr.size = file_pos-8;
 			wave_file_hdr.fmt_chunk.dwSamplesPerSec = (uint32_t)DEFAULT_SAMPLE_RATE_HZ;
 			wave_file_hdr.fmt_chunk.dwAvgBytesPerSec = wave_file_hdr.fmt_chunk.dwSamplesPerSec*2;
 			wave_file_hdr.data_chunk.chunkSize = file_pos - sizeof(t_wav_file_hdr);

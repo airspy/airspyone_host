@@ -1,8 +1,8 @@
 #
 # Copyright (c) 2012, Jared Boone <jared@sharebrained.com>
 # Copyright (c) 2013, Michael Ossmann <mike@ossmann.com>
-# Copyright (c) 2013, Benjamin Vernoux <bvernoux@airspy.com>
 # Copyright (c) 2013, Youssef Touil <youssef@airspy.com>
+# Copyright (c) 2013/2014, Benjamin Vernoux <bvernoux@airspy.com>
 #
 # This file is part of AirSpy (based on HackRF project).
 # 
@@ -50,6 +50,12 @@ endif(MINGW)
 add_library(airspy SHARED ${c_sources} ${AIRSPY_DLL_SRCS})
 set_target_properties(airspy PROPERTIES VERSION ${AIRSPY_VER_MAJOR}.${AIRSPY_VER_MINOR}.${AIRSPY_VER_REVISION})
 set_target_properties(airspy PROPERTIES SOVERSION 0)
+
+if( ${WIN32} )
+set_target_properties(airspy PROPERTIES
+                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ../../airspy-tools/src
+                      )
+endif( ${WIN32} )
 
 # Static library
 add_library(airspy-static STATIC ${c_sources})
