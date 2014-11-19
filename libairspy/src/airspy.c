@@ -139,9 +139,23 @@ static int free_transfers(airspy_device_t* device)
 		free(device->transfers);
 		device->transfers = NULL;
 
-		free(device->output_buffer);
-		free(device->received_buffer);
-		free(device->raw_samples);
+		if (device->output_buffer != NULL)
+		{
+			free(device->output_buffer);
+			device->output_buffer = NULL;
+		}
+
+		if (device->received_buffer != NULL)
+		{
+			free(device->received_buffer);
+			device->received_buffer = NULL;
+		}
+
+		if (device->raw_samples != NULL)
+		{
+			free(device->raw_samples);
+			device->raw_samples = NULL;
+		}
 	}
 
 	return AIRSPY_SUCCESS;
@@ -1332,24 +1346,28 @@ extern "C"
 
 	int ADDCALL airspy_set_rf_bias(airspy_device_t* device, uint8_t value)
 	{
-		int result;
-		result = libusb_control_transfer(
-		device->usb_device,
-		LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-		AIRSPY_SET_RF_BIAS_CMD,
-		value,
-		0,
-		NULL,
-		0,
-		0
-		);
+		/* AIRSPY_SET_RF_BIAS_CMD requires AirSpy FW 1.0.0 RC2 or more */
+		/*
+				int result;
+				result = libusb_control_transfer(
+				device->usb_device,
+				LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+				AIRSPY_SET_RF_BIAS_CMD,
+				value,
+				0,
+				NULL,
+				0,
+				0
+				);
 
-		if( result != 0 )
-		{
-			return AIRSPY_ERROR_LIBUSB;
-		} else {
-			return AIRSPY_SUCCESS;
-		}
+				if( result != 0 )
+				{
+					return AIRSPY_ERROR_LIBUSB;
+				} else {
+					return AIRSPY_SUCCESS;
+				}
+		*/
+		return airspy_gpio_write(device, GPIO_PORT1, GPIO_PIN13, value);
 	}
 
 	int ADDCALL airspy_is_streaming(airspy_device_t* device)
