@@ -740,8 +740,6 @@ extern "C"
 		{
 			result = airspy_stop_rx(device);
 
-			free_transfers(device);
-
 			iqconverter_float_free(device->cnv_f);
 			iqconverter_int16_free(device->cnv_i);
 
@@ -749,6 +747,7 @@ extern "C"
 			pthread_mutex_destroy(&device->conversion_mp);
 
 			airspy_open_exit(device);
+			free_transfers(device);
 			free(device);
 		}
 
