@@ -134,9 +134,6 @@
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
-    <CustomBuildStep>
-      <Command>copy $(ProjectDir)\libs\* $(ProjectDir)\..\Win32</Command>
-    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -182,9 +179,6 @@
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
-    <CustomBuildStep>
-      <Command>copy $(ProjectDir)\libs\* $(ProjectDir)\..\Win32</Command>
-    </CustomBuildStep>
     <PostBuildEvent>
       <Command>
       </Command>
@@ -234,9 +228,6 @@
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
-    <CustomBuildStep>
-      <Command>copy $(ProjectDir)\libs\* $(ProjectDir)\..\Win32</Command>
-    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">
     <ClCompile>
@@ -298,16 +289,19 @@
     <ResourceCompile Include="..\src\win32\airspy.rc" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include=".\libs\libusb-1.0.dll">
+    <CustomBuild Include=".\libs\$(Configuration)\libusb-1.0.dll">
       <Message>Copying from %(Identity) to $(OutDir)libusb-1.0.dll ...</Message>
       <Command>copy %(Identity) $(OutDir)libusb-1.0.dll</Command>
       <Outputs>$(OutDir)libusb-1.0.dll</Outputs>
     </CustomBuild>
-    <CustomBuild Include=".\libs\pthreadVCE2.dll">
+    <CustomBuild Include=".\libs\$(Configuration)\pthreadVCE2.dll">
       <Message>Copying from %(Identity) to $(OutDir)pthreadVCE2.dll ...</Message>
       <Command>copy %(Identity) $(OutDir)pthreadVCE2.dll</Command>
       <Outputs>$(OutDir)pthreadVCE2.dll</Outputs>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

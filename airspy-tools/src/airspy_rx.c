@@ -32,6 +32,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
+
+#define AIRSPY_RX_VERSION "1.0.0 RC1 21 Nov 2014"
 
 #ifndef bool
 typedef int bool;
@@ -80,23 +83,37 @@ int gettimeofday(struct timeval *tv, void* ignored)
 
 #include <signal.h>
 
-#define FD_BUFFER_SIZE (8*1024)
-
-#define FREQ_ONE_MHZ (1000000ul)
-
-#define DEFAULT_FREQ_HZ (900000000ul) /* 900MHz */
-#define FREQ_MIN_HZ (24000000ul) /* 24MHz */
-#define FREQ_MAX_HZ (1750000000ul) /* 1750MHz */
-
-#define SAMPLES_TO_XFER_MAX (0x8000000000000000ull) /* Max value */
-
 #if defined _WIN32
 	#define sleep(a) Sleep( (a*1000) )
 #endif
 
-#define DEFAULT_SAMPLE_RATE_HZ (10000000) /* 10MHz airspy sample rate */
+#define SAMPLE_SCALE_FLOAT_TO_INT ( (8192.0f) )
 
-/* WAVE or RIFF WAVE file format containing IQ 2x8bits data for AirSpy compatible with SDR# Wav IQ file */
+#define FLOAT32_EL_SIZE_BYTE (4)	/* 4bytes = 32bit float */
+#define INT16_EL_SIZE_BYTE (2)   /* 2bytes = 16bit int */
+
+#define FD_BUFFER_SIZE (16*1024)
+
+#define FREQ_ONE_MHZ (1000000ul)
+#define FREQ_ONE_MHZ_U64 (1000000ull)
+
+#define DEFAULT_SAMPLE_RATE_HZ (10000000) /* 10MHz airspy sample rate */
+#define DEFAULT_SAMPLE_RATE (AIRSPY_SAMPLERATE_10MSPS)
+#define DEFAULT_SAMPLE_TYPE (AIRSPY_SAMPLE_INT16_IQ)
+
+#define DEFAULT_FREQ_HZ (900000000ul) /* 900MHz */
+
+#define FREQ_HZ_MIN (24000000ul) /* 24MHz */
+#define FREQ_HZ_MAX (1900000000ul) /* 1900MHz (officially 1750MHz) */
+#define SAMPLE_RATE_MAX (AIRSPY_SAMPLERATE_END-1)
+#define SAMPLE_TYPE_MAX (AIRSPY_SAMPLE_INT16_REAL)
+#define BIAST_MAX (1)
+#define VGA_GAIN_MAX (15)
+#define MIXER_GAIN_MAX (15)
+#define LNA_GAIN_MAX (14)
+#define SAMPLES_TO_XFER_MAX_U64 (0x8000000000000000ull) /* Max value */
+
+/* WAVE or RIFF WAVE file format containing data for AirSpy compatible with SDR# Wav IQ file */
 typedef struct 
 {
 		char groupID[4]; /* 'RIFF' */
@@ -110,19 +127,19 @@ typedef struct {
 	char chunkID[4]; /* 'fmt ' */
 	uint32_t chunkSize; /* 16 fixed */
 
-	uint16_t wFormatTag; /* 1 fixed */
-	uint16_t wChannels;  /* 2 fixed */
+	uint16_t wFormatTag; /* 1=PCM8/16, 3=Float32 */
+	uint16_t wChannels;
 	uint32_t dwSamplesPerSec; /* Freq Hz sampling */
 	uint32_t dwAvgBytesPerSec; /* Freq Hz sampling x 2 */
-	uint16_t wBlockAlign; /* 2 fixed */
-	uint16_t wBitsPerSample; /* 16 fixed */
+	uint16_t wBlockAlign;
+	uint16_t wBitsPerSample;
 } t_FormatChunk;
 
 typedef struct 
 {
 		char chunkID[4]; /* 'data' */
 		uint32_t chunkSize; /* Size of data in bytes */
-	/* Samples I(8bits) then Q(8bits), I, Q ... */
+	/* For IQ samples I(16 or 32bits) then Q(16 or 32bits), I, Q ... */
 } t_DataChunk;
 
 typedef struct
@@ -144,12 +161,12 @@ t_wav_file_hdr wave_file_hdr =
 	{
 		{ 'f', 'm', 't', ' ' }, /* char		chunkID[4];  */
 		16, /* uint32_t chunkSize; */
-		1, /* uint16_t wFormatTag; 1 fixed */
-		2, /* uint16_t wChannels; 2 fixed */
+		0, /* uint16_t wFormatTag; to update later */
+		0, /* uint16_t wChannels; to update later */
 		0, /* uint32_t dwSamplesPerSec; Freq Hz sampling to update later */
-		0, /* uint32_t dwAvgBytesPerSec; Freq Hz sampling x 2 to update later */
-		4, /* uint16_t wBlockAlign; 4 fixed */
-		16, /* uint16_t wBitsPerSample; 16 fixed */
+		0, /* uint32_t dwAvgBytesPerSec; to update later */
+		0, /* uint16_t wBlockAlign; to update later */
+		0, /* uint16_t wBitsPerSample; to update later  */
 	},
 	/* t_DataChunk */
 	{
@@ -170,7 +187,44 @@ unsigned int vga_gain=0;
 unsigned int lna_gain=8;
 unsigned int mixer_gain=8;
 
+/* WAV default values */
+uint16_t wav_format_tag=1; /* PCM8 or PCM16 */
+uint16_t wav_nb_channels=2;
+uint32_t wav_sample_per_sec = DEFAULT_SAMPLE_RATE_HZ;
+uint16_t wav_nb_byte_per_sample=2;
+uint16_t wav_nb_bits_per_sample=16;
+
 airspy_read_partid_serialno_t read_partid_serialno;
+
+volatile bool do_exit = false;
+
+FILE* fd = NULL;
+volatile uint32_t byte_count = 0;
+
+bool receive = false;
+bool receive_wav = false;
+
+struct timeval time_start;
+struct timeval t_start;
+	
+bool freq = false;
+uint32_t freq_hz;
+
+bool limit_num_samples = false;
+uint64_t samples_to_xfer = 0;
+uint64_t bytes_to_xfer = 0;
+
+bool sample_rate = false;
+airspy_samplerate_t sample_rate_val;
+
+bool sample_type = false;
+enum airspy_sample_type sample_type_val = AIRSPY_SAMPLE_INT16_IQ;
+
+bool biast = false;
+uint32_t biast_val;
+
+bool serial_number = false;
+uint64_t serial_number_val;
 
 static float
 TimevalDiff(const struct timeval *a, const struct timeval *b)
@@ -280,67 +334,48 @@ char* u64toa(uint64_t val, t_u64toa* str)
 	return res;
 }
 
-volatile bool do_exit = false;
-
-FILE* fd = NULL;
-volatile uint32_t byte_count = 0;
-
-bool receive = false;
-bool receive_wav = false;
-
-struct timeval time_start;
-struct timeval t_start;
-	
-bool freq = false;
-uint32_t freq_hz;
-
-bool limit_num_samples = false;
-uint64_t samples_to_xfer = 0;
-uint64_t bytes_to_xfer = 0;
-
-bool serial_number = false;
-uint64_t serial_number_val;
-
-#define RX_BUFFER_SIZE (32*1024*1024)
-uint16_t rx_buffer[RX_BUFFER_SIZE];
-#define SAMPLE_SCALE_FLOAT_TO_INT ( (8192.0f) )
-
-enum airspy_sample_type sample_type = AIRSPY_SAMPLE_INT16_IQ;
-
 int rx_callback(airspy_transfer_t* transfer)
 {
-	uint32_t i;
 	uint32_t bytes_to_write;
 	uint32_t nb_data;
-	uint16_t* rx_samples_u16;
+	void* pt_rx_buffer;
+	ssize_t bytes_written;
 
 	if( fd != NULL ) 
 	{
-		ssize_t bytes_written;
-
-		switch(sample_type)
+		switch(sample_type_val)
 		{
+			case AIRSPY_SAMPLE_FLOAT32_IQ:
+				nb_data = transfer->sample_count * FLOAT32_EL_SIZE_BYTE * 2;
+				byte_count += nb_data;
+				bytes_to_write = nb_data;
+				pt_rx_buffer = transfer->samples;
+			break;
+
+			case AIRSPY_SAMPLE_FLOAT32_REAL:
+				nb_data = transfer->sample_count * FLOAT32_EL_SIZE_BYTE * 1;
+				byte_count += nb_data;
+				bytes_to_write = nb_data;
+				pt_rx_buffer = transfer->samples;
+			break;
+
 			case AIRSPY_SAMPLE_INT16_IQ:
-				/* Data are set to AIRSPY_SAMPLE_INT16_IQ (16bits Fixed IQ) */
-				nb_data = transfer->sample_count*2;
-				/* Check for safety to avoid buffer overflow */
-				if(nb_data >= RX_BUFFER_SIZE)
-				{
-					nb_data = RX_BUFFER_SIZE;
-				}
+				nb_data = transfer->sample_count * INT16_EL_SIZE_BYTE * 2;
+				byte_count += nb_data;
+				bytes_to_write = nb_data;
+				pt_rx_buffer = transfer->samples;
+			break;
 
-				rx_samples_u16 = (uint16_t*)(transfer->samples);
-				for(i=0; i<nb_data; i++)
-				{
-					rx_buffer[i] = rx_samples_u16[i];
-				}
-
-				byte_count += nb_data*(sizeof(uint16_t));
-				bytes_to_write = nb_data*(sizeof(uint16_t));
+			case AIRSPY_SAMPLE_INT16_REAL:
+				nb_data = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
+				byte_count += nb_data;
+				bytes_to_write = nb_data;
+				pt_rx_buffer = transfer->samples;
 			break;
 
 			default:
 				bytes_to_write = 0;
+				pt_rx_buffer = NULL;
 			break;
 		}
 
@@ -351,34 +386,43 @@ int rx_callback(airspy_transfer_t* transfer)
 			bytes_to_xfer -= bytes_to_write;
 		}
 
-		bytes_written = fwrite(rx_buffer, 1, bytes_to_write, fd);
-		if ((bytes_written != bytes_to_write)
-				|| (limit_num_samples && (bytes_to_xfer == 0))) {
-			return -1;
-		} else {
-			return 0;
+		if(pt_rx_buffer != NULL)
+		{
+			bytes_written = fwrite(pt_rx_buffer, 1, bytes_to_write, fd);
+		}else
+		{
+			bytes_written = 0;
 		}
-	} else {
+		if ( (bytes_written != bytes_to_write) || 
+				 ((limit_num_samples == true) && (bytes_to_xfer == 0)) 
+				)
+			return -1;
+		else
+			return 0;
+	}else
+	{
 		return -1;
 	}
 }
 
-#define MAX_VGA_GAIN (15)
-#define MAX_MIXER_GAIN (15)
-#define MAX_LNA_GAIN (14)
-
 static void usage(void)
 {
+	printf("airspy_rx v%s\n", AIRSPY_RX_VERSION);
 	printf("Usage:\n");
-	printf("\t-r <filename>: Receive data into file.\n");
-	printf("\t-w Receive data into file with WAV header and automatic name.\n");
-	printf("\t   This is for SDR# compatibility and may not work with other software.\n");
-	printf("\t[-f set_freq_hz]: Set Freq in Hz between [%luMHz, %luMHz].\n", FREQ_MIN_HZ/FREQ_ONE_MHZ, FREQ_MAX_HZ/FREQ_ONE_MHZ);
-	printf("\t[-v gain]: Set VGA gain, 0-%d (default %d)\n", MAX_VGA_GAIN, vga_gain);
-	printf("\t[-m gain]: Set Mixer gain, 0-%d (default %d)\n", MAX_MIXER_GAIN, mixer_gain);
-	printf("\t[-l gain]: Set LNA gain, 0-%d (default %d)\n", MAX_LNA_GAIN, lna_gain);
-	printf("\t[-n num_samples]: Number of samples to transfer (default is unlimited).\n");
-	printf("\t[-s serial_number_64bits]: Open board with specified 64bits serial number.\n");
+	printf("\t-r <filename>: Receive data into file\n");
+	printf("\t-w Receive data into file with WAV header and automatic name\n");
+	printf("\t   This is for SDR# compatibility and may not work with other software\n");
+	printf("\t[-s serial_number_64bits]: Open board with specified 64bits serial number\n");
+	printf("\t[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu]\n",
+					FREQ_HZ_MIN/FREQ_ONE_MHZ, FREQ_HZ_MAX/FREQ_ONE_MHZ);
+	printf("\t[-a sample_rate]: Set sample rate, 0=10MSPS(default), 1=2.5MSPS\n");
+	printf("\t[-t sample_type]: Set sample type, \n");
+	printf("\t   0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL\n");
+	printf("\t[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
+	printf("\t[-v vga_gain]: Set VGA gain, 0-%d (default %d)\n", VGA_GAIN_MAX, vga_gain);
+	printf("\t[-m mixer_gain]: Set Mixer gain, 0-%d (default %d)\n", MIXER_GAIN_MAX, mixer_gain);
+	printf("\t[-l lna_gain]: Set LNA gain, 0-%d (default %d)\n", LNA_GAIN_MAX, lna_gain);
+	printf("\t[-n num_samples]: Number of samples to transfer (default is unlimited)\n");
 }
 
 struct airspy_device* device = NULL;
@@ -420,58 +464,129 @@ int main(int argc, char** argv)
 	int exit_code = EXIT_SUCCESS;
 	struct timeval t_end;
 	float time_diff;
-	uint32_t serial_number_msb_val;
-	uint32_t serial_number_lsb_val;
+	uint32_t sample_rate_u32;
+	uint32_t sample_type_u32;
+	double freq_hz_temp;
 
-	while( (opt = getopt(argc, argv, "wr:f:n:v:m:l:s:")) != EOF )
+	while( (opt = getopt(argc, argv, "r:ws:f:a:t:b:v:m:l:n:")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
 		{
-		case 'w':
-			receive_wav = true;
+			case 'r':
+				receive = true;
+				path = optarg;
 			break;
 
-		case 'r':
-			receive = true;
-			path = optarg;
+			case 'w':
+				receive_wav = true;
+			 break;
+
+			case 's':
+				serial_number = true;
+				result = parse_u64(optarg, &serial_number_val);
 			break;
 
-		case 'f':
-			freq = true;
-			result = parse_u32(optarg, &freq_hz);
+			case 'f':
+				freq = true;
+				freq_hz_temp = strtod(optarg, NULL) * (double)FREQ_ONE_MHZ;
+				if(freq_hz_temp <= (double)FREQ_HZ_MAX)
+					freq_hz = (uint32_t)freq_hz_temp;
+				else
+					freq_hz = UINT_MAX;
 			break;
 
-		case 'v':
-			result = parse_u32(optarg, &vga_gain);
+			case 'a': /* Sample rate see also airspy_samplerate_t */
+				result = parse_u32(optarg, &sample_rate_u32);
+				switch (sample_rate_u32)
+				{
+					case 0:
+						sample_rate_val = AIRSPY_SAMPLERATE_10MSPS;
+						wav_sample_per_sec = 10000000;
+					break;
+
+					case 1:
+						sample_rate_val = AIRSPY_SAMPLERATE_2_5MSPS;
+						wav_sample_per_sec = 2500000;
+					break;
+
+					default:
+						/* Invalid value will display error */
+						sample_rate_val = SAMPLE_RATE_MAX+1;
+					break;
+				}
 			break;
 
-		case 'l':
-			result = parse_u32(optarg, &lna_gain);
+			case 't': /* Sample type see also airspy_sample_type */
+				result = parse_u32(optarg, &sample_type_u32);
+				switch (sample_type_u32)
+				{
+					case 0:
+						sample_type_val = AIRSPY_SAMPLE_FLOAT32_IQ;
+						wav_format_tag = 3; /* Float32 */
+						wav_nb_channels = 2;
+						wav_nb_bits_per_sample = 32;
+						wav_nb_byte_per_sample = (wav_nb_bits_per_sample / 8);
+					break;
+
+					case 1:
+						sample_type_val = AIRSPY_SAMPLE_FLOAT32_REAL;
+						wav_format_tag = 3; /* Float32 */
+						wav_nb_channels = 1;
+						wav_nb_bits_per_sample = 32;
+						wav_nb_byte_per_sample = (wav_nb_bits_per_sample / 8);
+					break;
+
+					case 2:
+						sample_type_val = AIRSPY_SAMPLE_INT16_IQ;
+						wav_format_tag = 1; /* PCM8 or PCM16 */
+						wav_nb_channels = 2;
+						wav_nb_bits_per_sample = 16;
+						wav_nb_byte_per_sample = (wav_nb_bits_per_sample / 8);
+					break;
+
+					case 3:
+						sample_type_val = AIRSPY_SAMPLE_INT16_REAL;
+						wav_format_tag = 1; /* PCM8 or PCM16 */
+						wav_nb_channels = 1;
+						wav_nb_bits_per_sample = 16;
+						wav_nb_byte_per_sample = (wav_nb_bits_per_sample / 8);
+					break;
+
+					default:
+						/* Invalid value will display error */
+						sample_type_val = SAMPLE_TYPE_MAX+1;
+					break;
+				}
 			break;
 
-		case 'm':
-			result = parse_u32(optarg, &mixer_gain);
+			case 'b':
+				serial_number = true;
+				result = parse_u32(optarg, &biast_val);
 			break;
 
-		case 'n':
-			limit_num_samples = true;
-			result = parse_u64(optarg, &samples_to_xfer);
-			bytes_to_xfer = samples_to_xfer * 2;
+			case 'v':
+				result = parse_u32(optarg, &vga_gain);
 			break;
 
-		case 's':
-			serial_number = true;
-			result = parse_u64(optarg, &serial_number_val);
-			serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
-			serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
-			printf("Board serial number to open: 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
+			case 'm':
+				result = parse_u32(optarg, &mixer_gain);
 			break;
 
-		default:
-			printf("unknown argument '-%c %s'\n", opt, optarg);
-			usage();
-			return EXIT_FAILURE;
+			case 'l':
+				result = parse_u32(optarg, &lna_gain);
+			break;
+
+			case 'n':
+				limit_num_samples = true;
+				result = parse_u64(optarg, &samples_to_xfer);
+				bytes_to_xfer = samples_to_xfer * 2;
+			break;
+
+			default:
+				printf("unknown argument '-%c %s'\n", opt, optarg);
+				usage();
+				return EXIT_FAILURE;
 		}
 		
 		if( result != AIRSPY_SUCCESS ) {
@@ -481,17 +596,19 @@ int main(int argc, char** argv)
 		}		
 	}
 
-	if (samples_to_xfer >= SAMPLES_TO_XFER_MAX) {
+	if (samples_to_xfer >= SAMPLES_TO_XFER_MAX_U64) {
 		printf("argument error: num_samples must be less than %s/%sMio\n",
-				u64toa(SAMPLES_TO_XFER_MAX, &ascii_u64_data1), u64toa(SAMPLES_TO_XFER_MAX/(FREQ_ONE_MHZ), &ascii_u64_data2) );
+				u64toa(SAMPLES_TO_XFER_MAX_U64, &ascii_u64_data1),
+				u64toa((SAMPLES_TO_XFER_MAX_U64/FREQ_ONE_MHZ_U64), &ascii_u64_data2) );
 		usage();
 		return EXIT_FAILURE;
 	}
 
 	if( freq ) {
-		if( (freq_hz >= FREQ_MAX_HZ) || (freq_hz < FREQ_MIN_HZ) )
+		if( (freq_hz >= FREQ_HZ_MAX) || (freq_hz < FREQ_HZ_MIN) )
 		{
-			printf("argument error: set_freq_hz shall be between [%s, %s[.\n", u64toa(FREQ_MIN_HZ, &ascii_u64_data1), u64toa(FREQ_MAX_HZ, &ascii_u64_data2));
+			printf("argument error: frequency_MHz=%.6f MHz and shall be between [%lu, %lu[ MHz\n",
+							((double)freq_hz/(double)FREQ_ONE_MHZ), FREQ_HZ_MIN/FREQ_ONE_MHZ, FREQ_HZ_MAX/FREQ_ONE_MHZ);
 			usage();
 			return EXIT_FAILURE;
 		}
@@ -502,7 +619,6 @@ int main(int argc, char** argv)
 	}
 
 	receiver_mode = RECEIVER_MODE_RX;
-	
 	if( receive_wav ) 
 	{
 		time (&rawtime);
@@ -516,28 +632,69 @@ int main(int argc, char** argv)
 	}	
 
 	if( path == NULL ) {
-		printf("specify a path to a file to receive\n");
+		printf("error: you shall specify at least -r <with filename> or -w option\n");
 		usage();
 		return EXIT_FAILURE;
 	}
 
-	if(vga_gain > MAX_VGA_GAIN) {
-		printf("vga_gain out of range\n");
+	if(sample_rate_val > SAMPLE_RATE_MAX) {
+		printf("argument error: sample_rate out of range\n");
 		usage();
 		return EXIT_FAILURE;
 	}
 
-	if(mixer_gain > MAX_MIXER_GAIN) {
-		printf("mixer_gain out of range\n");
+	if(sample_type_val > SAMPLE_TYPE_MAX) {
+		printf("argument error: sample_type out of range\n");
 		usage();
 		return EXIT_FAILURE;
 	}
 
-	if(lna_gain > MAX_LNA_GAIN) {
-		printf("lna_gain out of range\n");
+	if(biast_val > BIAST_MAX) {
+		printf("argument error: biast_val out of range\n");
 		usage();
 		return EXIT_FAILURE;
 	}
+
+	if(vga_gain > VGA_GAIN_MAX) {
+		printf("argument error: vga_gain out of range\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
+	if(mixer_gain > MIXER_GAIN_MAX) {
+		printf("argument error: mixer_gain out of range\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
+	if(lna_gain > LNA_GAIN_MAX) {
+		printf("argument error: lna_gain out of range\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
+#ifdef DEBUG_PARAM
+	{
+		uint32_t serial_number_msb_val;
+		uint32_t serial_number_lsb_val;
+		serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
+		serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
+		if(serial_number)
+			printf("serial_number_64bits -s 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
+		printf("frequency_MHz -f %.6f MHz (%sHz)\n",((double)freq_hz/(double)FREQ_ONE_MHZ), u64toa(freq_hz, &ascii_u64_data1) );
+		printf("sample_rate -a %d\n", sample_rate_val);
+		printf("sample_type -t %d\n", sample_type_val);
+		printf("biast -b %d\n", biast_val);
+		printf("vga_gain -v %u\n", vga_gain);
+		printf("mixer_gain -m %u\n", mixer_gain);
+		printf("lna_gain -l %u\n", lna_gain);
+		if( limit_num_samples ) {
+			printf("num_samples -n %s (%sMio)\n",
+							u64toa(samples_to_xfer, &ascii_u64_data1),
+							u64toa((samples_to_xfer/FREQ_ONE_MHZ), &ascii_u64_data2));
+		}
+	}
+#endif
 
 	result = airspy_init();
 	if( result != AIRSPY_SUCCESS ) {
@@ -574,10 +731,26 @@ int main(int argc, char** argv)
 	printf("Board Serial Number: 0x%08X%08X\n",
 		read_partid_serialno.serial_no[2],
 		read_partid_serialno.serial_no[3]);
+	
+	result = airspy_set_samplerate(device, sample_rate_val);
+	if( result != AIRSPY_SUCCESS ) {
+		printf("airspy_set_samplerate() failed: %s (%d)\n", airspy_error_name(result), result);
+		airspy_close(device);
+		airspy_exit();
+		return EXIT_FAILURE;
+	}
 
-	result = airspy_set_sample_type(device, sample_type);
+	result = airspy_set_sample_type(device, sample_type_val);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_sample_type() failed: %s (%d)\n", airspy_error_name(result), result);
+		airspy_close(device);
+		airspy_exit();
+		return EXIT_FAILURE;
+	}
+
+	result = airspy_set_rf_bias(device, biast_val);
+	if( result != AIRSPY_SUCCESS ) {
+		printf("airspy_set_rf_bias() failed: %s (%d)\n", airspy_error_name(result), result);
 		airspy_close(device);
 		airspy_exit();
 		return EXIT_FAILURE;
@@ -590,7 +763,7 @@ int main(int argc, char** argv)
 		airspy_exit();
 		return EXIT_FAILURE;
 	}
-	/* Change fd buffer to have bigger one to store or read data on/to HDD */
+	/* Change fd buffer to have bigger one to store data to file */
 	result = setvbuf(fd , NULL , _IOFBF , FD_BUFFER_SIZE);
 	if( result != 0 ) {
 		printf("setvbuf() failed: %d\n", result);
@@ -616,19 +789,16 @@ int main(int argc, char** argv)
 	signal(SIGABRT, &sigint_callback_handler);
 #endif
 
-	printf("call airspy_set_vga_gain(%u)\n", vga_gain);
 	result = airspy_set_vga_gain(device, vga_gain);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_vga_gain() failed: %s (%d)\n", airspy_error_name(result), result);
 	}
 
-	printf("call airspy_set_mixer_gain(%u)\n", mixer_gain);
 	result = airspy_set_mixer_gain(device, mixer_gain);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_mixer_gain() failed: %s (%d)\n", airspy_error_name(result), result);
 	}
 
-	printf("call airspy_set_lna_gain(%u)\n", lna_gain);
 	result = airspy_set_lna_gain(device, lna_gain);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_lna_gain() failed: %s (%d)\n", airspy_error_name(result), result);
@@ -642,7 +812,6 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	printf("call airspy_set_freq(%s Hz / %.03f MHz)\n", u64toa(freq_hz, &ascii_u64_data1),((double)freq_hz/(double)FREQ_ONE_MHZ) );
 	result = airspy_set_freq(device, freq_hz);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_freq() failed: %s (%d)\n", airspy_error_name(result), result);
@@ -651,10 +820,6 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	if( limit_num_samples ) {
-		printf("samples_to_xfer %s/%sMio\n", u64toa(samples_to_xfer, &ascii_u64_data1), u64toa((samples_to_xfer/FREQ_ONE_MHZ), &ascii_u64_data2) );
-	}
-	
 	gettimeofday(&t_start, NULL);
 	gettimeofday(&time_start, NULL);
 
@@ -725,10 +890,16 @@ int main(int argc, char** argv)
 		{
 			/* Get size of file */
 			file_pos = ftell(fd);
-			/* Update Wav Header */
-			wave_file_hdr.hdr.size = file_pos-8;
-			wave_file_hdr.fmt_chunk.dwSamplesPerSec = (uint32_t)DEFAULT_SAMPLE_RATE_HZ;
-			wave_file_hdr.fmt_chunk.dwAvgBytesPerSec = wave_file_hdr.fmt_chunk.dwSamplesPerSec*2;
+			/* Wav Header */
+			wave_file_hdr.hdr.size = file_pos - 8;
+			/* Wav Format Chunk */
+			wave_file_hdr.fmt_chunk.wFormatTag = wav_format_tag;
+			wave_file_hdr.fmt_chunk.wChannels = wav_nb_channels;
+			wave_file_hdr.fmt_chunk.dwSamplesPerSec = wav_sample_per_sec;
+			wave_file_hdr.fmt_chunk.dwAvgBytesPerSec = wave_file_hdr.fmt_chunk.dwSamplesPerSec * wav_nb_byte_per_sample;
+			wave_file_hdr.fmt_chunk.wBlockAlign = wav_nb_channels * (wav_nb_bits_per_sample / 8);
+			wave_file_hdr.fmt_chunk.wBitsPerSample = wav_nb_bits_per_sample;
+			/* Wav Data Chunk */
 			wave_file_hdr.data_chunk.chunkSize = file_pos - sizeof(t_wav_file_hdr);
 			/* Overwrite header with updated data */
 			rewind(fd);

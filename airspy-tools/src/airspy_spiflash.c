@@ -257,6 +257,7 @@ int main(int argc, char** argv)
 	result = airspy_init();
 	if (result != AIRSPY_SUCCESS) {
 		fprintf(stderr, "airspy_init() failed: %s (%d)\n", airspy_error_name(result), result);
+		fclose(fd);
 		return EXIT_FAILURE;
 	}
 
@@ -266,6 +267,7 @@ int main(int argc, char** argv)
 		if( result != AIRSPY_SUCCESS ) {
 			printf("airspy_open_sn() failed: %s (%d)\n", airspy_error_name(result), result);
 			usage();
+			fclose(fd);
 			return EXIT_FAILURE;
 		}
 	}else
@@ -274,6 +276,7 @@ int main(int argc, char** argv)
 		if( result != AIRSPY_SUCCESS ) {
 			printf("airspy_open() failed: %s (%d)\n", airspy_error_name(result), result);
 			usage();
+			fclose(fd);
 			return EXIT_FAILURE;
 		}
 	}
@@ -290,7 +293,6 @@ int main(int argc, char** argv)
 			if (result != AIRSPY_SUCCESS) {
 				fprintf(stderr, "airspy_spiflash_read() failed: %s (%d)\n", airspy_error_name(result), result);
 				fclose(fd);
-				fd = NULL;
 				return EXIT_FAILURE;
 			}     
 			address += xfer_len;
@@ -301,7 +303,6 @@ int main(int argc, char** argv)
 		if (bytes_written != length) {
 			fprintf(stderr, "Failed write to file (wrote %d bytes).\n", (int)bytes_written);
 			fclose(fd);
-			fd = NULL;
 			return EXIT_FAILURE;
 		}
 	} else
@@ -311,7 +312,6 @@ int main(int argc, char** argv)
 		if (bytes_read != length) {
 			fprintf(stderr, "Failed read file (read %d bytes).\n", (int)bytes_read);
 			fclose(fd);
-			fd = NULL;
 			return EXIT_FAILURE;
 		}
 		printf("Erasing 1st 64KB in SPI flash.\n");
@@ -319,7 +319,6 @@ int main(int argc, char** argv)
 		if (result != AIRSPY_SUCCESS) {
 			fprintf(stderr, "airspy_spiflash_erase() failed: %s (%d)\n", airspy_error_name(result), result);
 			fclose(fd);
-			fd = NULL;
 			return EXIT_FAILURE;
 		}
 		while (length)
@@ -330,7 +329,6 @@ int main(int argc, char** argv)
 			if (result != AIRSPY_SUCCESS) {
 				fprintf(stderr, "airspy_spiflash_write() failed: %s (%d)\n", airspy_error_name(result), result);
 				fclose(fd);
-				fd = NULL;
 				return EXIT_FAILURE;
 			}
 			address += xfer_len;
@@ -343,7 +341,6 @@ int main(int argc, char** argv)
 	if (result != AIRSPY_SUCCESS) {
 		fprintf(stderr, "airspy_close() failed: %s (%d)\n", airspy_error_name(result), result);
 		fclose(fd);
-		fd = NULL;
 		return EXIT_FAILURE;
 	}
 
