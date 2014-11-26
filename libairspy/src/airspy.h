@@ -85,7 +85,9 @@ enum airspy_sample_type
 	AIRSPY_SAMPLE_FLOAT32_IQ = 0,   /* 2 * 32bit float per sample */
 	AIRSPY_SAMPLE_FLOAT32_REAL = 1, /* 1 * 32bit float per sample */
 	AIRSPY_SAMPLE_INT16_IQ = 2,     /* 2 * 16bit int per sample */
-	AIRSPY_SAMPLE_INT16_REAL = 3    /* 1 * 16bit int per sample */
+	AIRSPY_SAMPLE_INT16_REAL = 3,   /* 1 * 16bit int per sample */
+	AIRSPY_SAMPLE_UINT16_REAL = 4,  /* 1 * 16bit unsigned int per sample */
+	AIRSPY_SAMPLE_END = 5           /* Number of supported sample types */
 };
 
 struct airspy_device;

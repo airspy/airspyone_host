@@ -83,7 +83,6 @@ typedef struct airspy_device
 	volatile int received_samples_queue_head;
 	volatile int received_samples_queue_tail;
 	volatile bool converter_is_waiting;
-	uint16_t *raw_samples;	
 	void *output_buffer;
 	iqconveter_float_t *cnv_f;
 	iqconveter_int16_t *cnv_i;
@@ -156,12 +155,6 @@ static int free_transfers(airspy_device_t* device)
 				device->received_samples_queue[i] = NULL;
 			}
 		}
-
-		if (device->raw_samples != NULL)
-		{
-			free(device->raw_samples);
-			device->raw_samples = NULL;
-		}
 	}
 
 	return AIRSPY_SUCCESS;
@@ -187,12 +180,6 @@ static int allocate_transfers(airspy_device_t* const device)
 		}
 
 		sample_count = device->buffer_size / 2;
-
-		device->raw_samples = (uint16_t *)malloc(sample_count * sizeof(uint16_t));
-		if (device->raw_samples == NULL)
-		{
-			return AIRSPY_ERROR_NO_MEM;
-		}
 		
 		device->output_buffer = (float *) malloc(sample_count * sizeof(float));
 		if (device->output_buffer == NULL)
@@ -283,6 +270,7 @@ static void convert_samples_float(uint16_t *src, float *dest, int count)
 static void* conversion_threadproc(void *arg)
 {
 	int sample_count;
+	uint16_t* input_samples;
 	airspy_device_t* device = (airspy_device_t*)arg;
 	airspy_transfer_t transfer;
 
@@ -312,30 +300,38 @@ static void* conversion_threadproc(void *arg)
 			}
 		}
 
-		memcpy(device->raw_samples, device->received_samples_queue[device->received_samples_queue_tail], device->buffer_size);
+		input_samples = device->received_samples_queue[device->received_samples_queue_tail];
 		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 		sample_count = device->buffer_size / 2;
 
 		switch (device->sample_type)
 		{
 		case AIRSPY_SAMPLE_FLOAT32_IQ:
-			convert_samples_float(device->raw_samples, (float *) device->output_buffer, sample_count);
+			convert_samples_float(input_samples, (float *)device->output_buffer, sample_count);
 			iqconverter_float_process(device->cnv_f, (float *) device->output_buffer, sample_count);
 			sample_count /= 2;
+			transfer.samples = device->output_buffer;
 			break;
 
 		case AIRSPY_SAMPLE_FLOAT32_REAL:
-			convert_samples_float(device->raw_samples, (float *) device->output_buffer, sample_count);
+			convert_samples_float(input_samples, (float *)device->output_buffer, sample_count);
+			transfer.samples = device->output_buffer;
 			break;
 
 		case AIRSPY_SAMPLE_INT16_IQ:
-			convert_samples_int16(device->raw_samples, (int16_t *) device->output_buffer, sample_count);
+			convert_samples_int16(input_samples, (int16_t *)device->output_buffer, sample_count);
 			iqconverter_int16_process(device->cnv_i, (int16_t *) device->output_buffer, sample_count);
 			sample_count /= 2;
+			transfer.samples = device->output_buffer;
 			break;
 
 		case AIRSPY_SAMPLE_INT16_REAL:
-			convert_samples_int16(device->raw_samples, (int16_t *) device->output_buffer, sample_count);
+			convert_samples_int16(input_samples, (int16_t *)device->output_buffer, sample_count);
+			transfer.samples = device->output_buffer;
+			break;
+
+		case AIRSPY_SAMPLE_UINT16_REAL:
+			transfer.samples = input_samples;
 			break;
 		}
 
