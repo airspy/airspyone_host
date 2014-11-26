@@ -359,6 +359,11 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 	{
 		return;
 	}
+
+	if (device->received_samples_queue_head == device->received_samples_queue_tail && !device->converter_is_waiting)
+	{
+		return;
+	}
 	
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
