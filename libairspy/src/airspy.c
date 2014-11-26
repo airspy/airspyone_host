@@ -408,10 +408,6 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 	
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
-		if (device->received_samples_queue_head == device->received_samples_queue_tail)
-		{
-		}
-
 		memcpy(device->received_samples_queue[device->received_samples_queue_head], usb_transfer->buffer, usb_transfer->length);
 		device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
 		
