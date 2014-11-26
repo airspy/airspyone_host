@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.0 RC1 21 Nov 2014"
+#define AIRSPY_RX_VERSION "1.0.0 RC2 26 Nov 2014"
 
 #ifndef bool
 typedef int bool;
@@ -103,10 +103,14 @@ int gettimeofday(struct timeval *tv, void* ignored)
 
 #define DEFAULT_FREQ_HZ (900000000ul) /* 900MHz */
 
+#define DEFAULT_VGA_IF_GAIN (1)
+#define DEFAULT_LNA_GAIN (8)
+#define DEFAULT_MIXER_GAIN (8)
+
 #define FREQ_HZ_MIN (24000000ul) /* 24MHz */
 #define FREQ_HZ_MAX (1900000000ul) /* 1900MHz (officially 1750MHz) */
 #define SAMPLE_RATE_MAX (AIRSPY_SAMPLERATE_END-1)
-#define SAMPLE_TYPE_MAX (AIRSPY_SAMPLE_INT16_REAL)
+#define SAMPLE_TYPE_MAX (AIRSPY_SAMPLE_END-1)
 #define BIAST_MAX (1)
 #define VGA_GAIN_MAX (15)
 #define MIXER_GAIN_MAX (15)
@@ -183,9 +187,9 @@ typedef struct
 
 receiver_mode_t receiver_mode = RECEIVER_MODE_RX;
 
-unsigned int vga_gain=0;
-unsigned int lna_gain=8;
-unsigned int mixer_gain=8;
+unsigned int vga_gain = DEFAULT_VGA_IF_GAIN;
+unsigned int lna_gain = DEFAULT_LNA_GAIN;
+unsigned int mixer_gain = DEFAULT_MIXER_GAIN;
 
 /* WAV default values */
 uint16_t wav_format_tag=1; /* PCM8 or PCM16 */
@@ -373,6 +377,13 @@ int rx_callback(airspy_transfer_t* transfer)
 				pt_rx_buffer = transfer->samples;
 			break;
 
+			case AIRSPY_SAMPLE_UINT16_REAL:
+				nb_data = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
+				byte_count += nb_data;
+				bytes_to_write = nb_data;
+				pt_rx_buffer = transfer->samples;
+			break;
+
 			default:
 				bytes_to_write = 0;
 				pt_rx_buffer = NULL;
@@ -409,20 +420,20 @@ static void usage(void)
 {
 	printf("airspy_rx v%s\n", AIRSPY_RX_VERSION);
 	printf("Usage:\n");
-	printf("\t-r <filename>: Receive data into file\n");
-	printf("\t-w Receive data into file with WAV header and automatic name\n");
-	printf("\t   This is for SDR# compatibility and may not work with other software\n");
-	printf("\t[-s serial_number_64bits]: Open board with specified 64bits serial number\n");
-	printf("\t[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu]\n",
-					FREQ_HZ_MIN/FREQ_ONE_MHZ, FREQ_HZ_MAX/FREQ_ONE_MHZ);
-	printf("\t[-a sample_rate]: Set sample rate, 0=10MSPS(default), 1=2.5MSPS\n");
-	printf("\t[-t sample_type]: Set sample type, \n");
-	printf("\t   0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL\n");
-	printf("\t[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
-	printf("\t[-v vga_gain]: Set VGA gain, 0-%d (default %d)\n", VGA_GAIN_MAX, vga_gain);
-	printf("\t[-m mixer_gain]: Set Mixer gain, 0-%d (default %d)\n", MIXER_GAIN_MAX, mixer_gain);
-	printf("\t[-l lna_gain]: Set LNA gain, 0-%d (default %d)\n", LNA_GAIN_MAX, lna_gain);
-	printf("\t[-n num_samples]: Number of samples to transfer (default is unlimited)\n");
+	printf("-r <filename>: Receive data into file\n");
+	printf("-w Receive data into file with WAV header and automatic name\n");
+	printf(" This is for SDR# compatibility and may not work with other software\n");
+	printf("[-s serial_number_64bits]: Open board with specified 64bits serial number\n");
+	printf("[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu] (default %luMHz)\n",
+		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
+	printf("[-a sample_rate]: Set sample rate, 0=10MSPS(default), 1=2.5MSPS\n");
+	printf("[-t sample_type]: Set sample type, \n");
+	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_RAW\n");
+	printf("[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
+	printf("[-v vga_gain]: Set VGA/IF gain, 0-%d (default %d)\n", VGA_GAIN_MAX, vga_gain);
+	printf("[-m mixer_gain]: Set Mixer gain, 0-%d (default %d)\n", MIXER_GAIN_MAX, mixer_gain);
+	printf("[-l lna_gain]: Set LNA gain, 0-%d (default %d)\n", LNA_GAIN_MAX, lna_gain);
+	printf("[-n num_samples]: Number of samples to transfer (default is unlimited)\n");
 }
 
 struct airspy_device* device = NULL;
@@ -547,6 +558,14 @@ int main(int argc, char** argv)
 
 					case 3:
 						sample_type_val = AIRSPY_SAMPLE_INT16_REAL;
+						wav_format_tag = 1; /* PCM8 or PCM16 */
+						wav_nb_channels = 1;
+						wav_nb_bits_per_sample = 16;
+						wav_nb_byte_per_sample = (wav_nb_bits_per_sample / 8);
+					break;
+
+					case 4:
+						sample_type_val = AIRSPY_SAMPLE_UINT16_REAL;
 						wav_format_tag = 1; /* PCM8 or PCM16 */
 						wav_nb_channels = 1;
 						wav_nb_bits_per_sample = 16;
@@ -839,7 +858,7 @@ int main(int argc, char** argv)
 		
 		time_difference = TimevalDiff(&time_now, &time_start);
 		rate = (float)byte_count_now / time_difference;
-		printf("%4.1f MiB / %5.3f sec = %4.1f MiB/second\n",
+		printf("%4.3f MiB / %4.1f sec = %4.3f MiB/second\n",
 				(byte_count_now / 1e6f), time_difference, (rate / 1e6f) );
 
 		time_start = time_now;
