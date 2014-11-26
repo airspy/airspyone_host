@@ -301,7 +301,6 @@ static void* conversion_threadproc(void *arg)
 		}
 
 		input_samples = device->received_samples_queue[device->received_samples_queue_tail];
-		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 		sample_count = device->buffer_size / 2;
 
 		switch (device->sample_type)
@@ -345,6 +344,8 @@ static void* conversion_threadproc(void *arg)
 		{
 			device->stop_requested = true;
 		}
+
+		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 	}
 
 	return NULL;
