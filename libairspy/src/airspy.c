@@ -83,6 +83,7 @@ typedef struct airspy_device
 	uint16_t *received_samples_queue[RAW_BUFFER_COUNT];
 	volatile int received_samples_queue_head;
 	volatile int received_samples_queue_tail;
+	volatile bool converter_is_waiting;
 	uint16_t *raw_samples;	
 	void *output_buffer;
 	iqconveter_float_t *cnv_f;
@@ -379,13 +380,18 @@ static void* conversion_threadproc(void *arg)
 			device->stop_requested = true;
 		}
 
-		pthread_mutex_lock(&device->conversion_mp);
-		while (device->received_samples_queue_head == device->received_samples_queue_tail && 
-			!device->stop_requested && device->streaming)
+		if (device->received_samples_queue_head == device->received_samples_queue_tail)
 		{
-			pthread_cond_wait(&device->conversion_cv, &device->conversion_mp);
+			pthread_mutex_lock(&device->conversion_mp);
+			device->converter_is_waiting = true;
+			while (device->received_samples_queue_head == device->received_samples_queue_tail &&
+				!device->stop_requested && device->streaming)
+			{
+				pthread_cond_wait(&device->conversion_cv, &device->conversion_mp);
+			}
+			device->converter_is_waiting = false;
+			pthread_mutex_unlock(&device->conversion_mp);
 		}
-		pthread_mutex_unlock(&device->conversion_mp);
 	}
 
 	return NULL;
@@ -402,12 +408,19 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 	
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
+		if (device->received_samples_queue_head == device->received_samples_queue_tail)
+		{
+		}
+
 		memcpy(device->received_samples_queue[device->received_samples_queue_head], usb_transfer->buffer, usb_transfer->length);
 		device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
 		
-		pthread_mutex_lock(&device->conversion_mp);
-		pthread_cond_signal(&device->conversion_cv);
-		pthread_mutex_unlock(&device->conversion_mp);		
+		if (device->converter_is_waiting)
+		{
+			pthread_mutex_lock(&device->conversion_mp);
+			pthread_cond_signal(&device->conversion_cv);
+			pthread_mutex_unlock(&device->conversion_mp);
+		}
 	}
 
 	if (libusb_submit_transfer(usb_transfer) != 0)
@@ -478,6 +491,7 @@ static int create_io_threads(airspy_device_t* device, airspy_sample_block_cb_fn 
 
 		device->received_samples_queue_head = (RAW_BUFFER_COUNT / 2) + 1;
 		device->received_samples_queue_tail = 0;
+		device->converter_is_waiting = true;
 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -673,7 +687,7 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 	lib_device->transfer_count = 1024;
 	lib_device->buffer_size = 16384;
 	*/
-	lib_device->transfer_count = 10;
+	lib_device->transfer_count = 32;
 	//lib_device->buffer_size = 262140; /* Must be a multiple of 12 does not work with linux */
 	lib_device->buffer_size = 262144; /* Work with linux */
 	lib_device->streaming = false;
