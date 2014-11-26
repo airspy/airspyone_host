@@ -42,6 +42,7 @@ typedef int bool;
 #define USE_PACKING false
 #define PACKET_SIZE (12)
 #define UNPACKED_SIZE (16)
+#define RAW_BUFFER_COUNT (8)
 
 #ifdef AIRSPY_BIG_ENDIAN
 #define TO_LE(x) __builtin_bswap32(x)
@@ -72,16 +73,17 @@ typedef struct airspy_device
 	airspy_sample_block_cb_fn callback;
 	volatile bool streaming;
 	volatile bool stop_requested;
-	volatile bool data_available;
 	pthread_t transfer_thread;
 	pthread_t conversion_thread;
 	pthread_cond_t conversion_cv;
 	pthread_mutex_t conversion_mp;
 	uint32_t transfer_count;
 	uint32_t buffer_size;
-	uint32_t total_dropped_samples;
-	unsigned char *received_buffer;
-	uint16_t *raw_samples;
+	uint32_t total_dropped_samples;	
+	uint16_t *received_samples_queue[RAW_BUFFER_COUNT];
+	volatile int received_samples_queue_head;
+	volatile int received_samples_queue_tail;
+	uint16_t *raw_samples;	
 	void *output_buffer;
 	iqconveter_float_t *cnv_f;
 	iqconveter_int16_t *cnv_i;
@@ -123,6 +125,7 @@ static int cancel_transfers(airspy_device_t* device)
 
 static int free_transfers(airspy_device_t* device)
 {
+	int i;
 	uint32_t transfer_index;
 
 	if (device->transfers != NULL)
@@ -145,10 +148,13 @@ static int free_transfers(airspy_device_t* device)
 			device->output_buffer = NULL;
 		}
 
-		if (device->received_buffer != NULL)
+		for (i = 0; i < RAW_BUFFER_COUNT; i++)
 		{
-			free(device->received_buffer);
-			device->received_buffer = NULL;
+			if (device->received_samples_queue[i] != NULL)
+			{
+				free(device->received_samples_queue[i]);
+				device->received_samples_queue[i] = NULL;
+			}
 		}
 
 		if (device->raw_samples != NULL)
@@ -163,15 +169,21 @@ static int free_transfers(airspy_device_t* device)
 
 static int allocate_transfers(airspy_device_t* const device)
 {
+	int i;
 	size_t sample_count;
 	uint32_t transfer_index;
 
 	if( device->transfers == NULL )
 	{
-		device->received_buffer = (unsigned char *) malloc(device->buffer_size);
-		if (device->received_buffer == NULL)
+		for (i = 0; i < RAW_BUFFER_COUNT; i++)
 		{
-			return AIRSPY_ERROR_NO_MEM;
+			device->received_samples_queue[i] = (uint16_t *)malloc(device->buffer_size);
+			if (device->received_samples_queue[i] == NULL)
+			{
+				return AIRSPY_ERROR_NO_MEM;
+			}
+
+			memset(device->received_samples_queue[i], 0, device->buffer_size);
 		}
 
 #if (USE_PACKING)
@@ -179,13 +191,12 @@ static int allocate_transfers(airspy_device_t* const device)
 #else
 		sample_count = device->buffer_size / 2;
 #endif
-
-		device->raw_samples = (uint16_t *) malloc(sample_count * sizeof(uint16_t));
+		device->raw_samples = (uint16_t *)malloc(sample_count * sizeof(uint16_t));
 		if (device->raw_samples == NULL)
 		{
 			return AIRSPY_ERROR_NO_MEM;
 		}
-
+		
 		device->output_buffer = (float *) malloc(sample_count * sizeof(float));
 		if (device->output_buffer == NULL)
 		{
@@ -329,11 +340,10 @@ static void* conversion_threadproc(void *arg)
 		unpack_samples(device->received_buffer, device->raw_samples, device->buffer_size);
 		sample_count = device->buffer_size / 2 * UNPACKED_SIZE / PACKET_SIZE;
 #else
-		memcpy(device->raw_samples, device->received_buffer, device->buffer_size);
+		memcpy(device->raw_samples, device->received_samples_queue[device->received_samples_queue_tail], device->buffer_size);
+		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 		sample_count = device->buffer_size / 2;
 #endif
-
-		device->data_available = false;
 
 		switch (device->sample_type)
 		{
@@ -370,7 +380,8 @@ static void* conversion_threadproc(void *arg)
 		}
 
 		pthread_mutex_lock(&device->conversion_mp);
-		while (!device->data_available && !device->stop_requested && device->streaming)
+		while (device->received_samples_queue_head == device->received_samples_queue_tail && 
+			!device->stop_requested && device->streaming)
 		{
 			pthread_cond_wait(&device->conversion_cv, &device->conversion_mp);
 		}
@@ -391,15 +402,12 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 	
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
-		if (!device->data_available)
-		{
-			memcpy(device->received_buffer, usb_transfer->buffer, usb_transfer->length);
-			device->data_available = true;
-
-			pthread_mutex_lock(&device->conversion_mp);
-			pthread_cond_signal(&device->conversion_cv);
-			pthread_mutex_unlock(&device->conversion_mp);
-		}
+		memcpy(device->received_samples_queue[device->received_samples_queue_head], usb_transfer->buffer, usb_transfer->length);
+		device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
+		
+		pthread_mutex_lock(&device->conversion_mp);
+		pthread_cond_signal(&device->conversion_cv);
+		pthread_mutex_unlock(&device->conversion_mp);		
 	}
 
 	if (libusb_submit_transfer(usb_transfer) != 0)
@@ -447,7 +455,6 @@ static int kill_io_threads(airspy_device_t* device)
 
 		device->stop_requested = false;
 		device->streaming = false;
-		device->data_available = false;
 	}
 
 	return AIRSPY_SUCCESS;
@@ -468,6 +475,9 @@ static int create_io_threads(airspy_device_t* device, airspy_sample_block_cb_fn 
 		{
 			return result;
 		}
+
+		device->received_samples_queue_head = (RAW_BUFFER_COUNT / 2) + 1;
+		device->received_samples_queue_tail = 0;
 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -668,7 +678,6 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 	lib_device->buffer_size = 262144; /* Work with linux */
 	lib_device->streaming = false;
 	lib_device->stop_requested = false;
-	lib_device->data_available = false;
 	lib_device->sample_type = AIRSPY_SAMPLE_FLOAT32_IQ;
 
 	result = allocate_transfers(lib_device);
