@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.0 RC2 26 Nov 2014"
+#define AIRSPY_RX_VERSION "1.0.0 27 Nov 2014"
 
 #ifndef bool
 typedef int bool;
@@ -103,9 +103,9 @@ int gettimeofday(struct timeval *tv, void* ignored)
 
 #define DEFAULT_FREQ_HZ (900000000ul) /* 900MHz */
 
-#define DEFAULT_VGA_IF_GAIN (1)
-#define DEFAULT_LNA_GAIN (8)
-#define DEFAULT_MIXER_GAIN (8)
+#define DEFAULT_VGA_IF_GAIN (5)
+#define DEFAULT_LNA_GAIN (1)
+#define DEFAULT_MIXER_GAIN (5)
 
 #define FREQ_HZ_MIN (24000000ul) /* 24MHz */
 #define FREQ_HZ_MAX (1900000000ul) /* 1900MHz (officially 1750MHz) */
@@ -204,6 +204,7 @@ volatile bool do_exit = false;
 
 FILE* fd = NULL;
 
+bool verbose = false;
 bool receive = false;
 bool receive_wav = false;
 
@@ -445,17 +446,18 @@ static void usage(void)
 	printf("-r <filename>: Receive data into file\n");
 	printf("-w Receive data into file with WAV header and automatic name\n");
 	printf(" This is for SDR# compatibility and may not work with other software\n");
-	printf("[-s serial_number_64bits]: Open board with specified 64bits serial number\n");
+	printf("[-s serial_number_64bits]: Open device with specified 64bits serial number\n");
 	printf("[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu] (default %luMHz)\n",
 		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
 	printf("[-a sample_rate]: Set sample rate, 0=10MSPS(default), 1=2.5MSPS\n");
 	printf("[-t sample_type]: Set sample type, \n");
-	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_RAW\n");
+	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_REAL\n");
 	printf("[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
 	printf("[-v vga_gain]: Set VGA/IF gain, 0-%d (default %d)\n", VGA_GAIN_MAX, vga_gain);
 	printf("[-m mixer_gain]: Set Mixer gain, 0-%d (default %d)\n", MIXER_GAIN_MAX, mixer_gain);
 	printf("[-l lna_gain]: Set LNA gain, 0-%d (default %d)\n", LNA_GAIN_MAX, lna_gain);
 	printf("[-n num_samples]: Number of samples to transfer (default is unlimited)\n");
+	printf("[-d]: Verbose mode\n");
 }
 
 struct airspy_device* device = NULL;
@@ -502,7 +504,7 @@ int main(int argc, char** argv)
 	double freq_hz_temp;
 	char str[20];
 
-	while( (opt = getopt(argc, argv, "r:ws:f:a:t:b:v:m:l:n:")) != EOF )
+	while( (opt = getopt(argc, argv, "r:ws:f:a:t:b:v:m:l:n:d")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
@@ -624,6 +626,10 @@ int main(int argc, char** argv)
 				result = parse_u64(optarg, &samples_to_xfer);
 			break;
 
+			case 'd':
+				verbose = true;
+			break;
+
 			default:
 				printf("unknown argument '-%c %s'\n", opt, optarg);
 				usage();
@@ -721,15 +727,17 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-#ifdef DEBUG_PARAM
+	if(verbose == true)
 	{
 		uint32_t serial_number_msb_val;
 		uint32_t serial_number_lsb_val;
+
+		printf("airspy_rx v%s\n", AIRSPY_RX_VERSION);
 		serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
 		serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
 		if(serial_number)
 			printf("serial_number_64bits -s 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
-		printf("frequency_MHz -f %.6f MHz (%sHz)\n",((double)freq_hz/(double)FREQ_ONE_MHZ), u64toa(freq_hz, &ascii_u64_data1) );
+		printf("frequency_MHz -f %.6fMHz (%sHz)\n",((double)freq_hz/(double)FREQ_ONE_MHZ), u64toa(freq_hz, &ascii_u64_data1) );
 		printf("sample_rate -a %d\n", sample_rate_val);
 		printf("sample_type -t %d\n", sample_type_val);
 		printf("biast -b %d\n", biast_val);
@@ -737,12 +745,11 @@ int main(int argc, char** argv)
 		printf("mixer_gain -m %u\n", mixer_gain);
 		printf("lna_gain -l %u\n", lna_gain);
 		if( limit_num_samples ) {
-			printf("num_samples -n %s (%sMio)\n",
+			printf("num_samples -n %s (%sM)\n",
 							u64toa(samples_to_xfer, &ascii_u64_data1),
 							u64toa((samples_to_xfer/FREQ_ONE_MHZ), &ascii_u64_data2));
 		}
 	}
-#endif
 
 	result = airspy_init();
 	if( result != AIRSPY_SUCCESS ) {
@@ -776,7 +783,7 @@ int main(int argc, char** argv)
 			airspy_exit();
 			return EXIT_FAILURE;
 	}
-	printf("Board Serial Number: 0x%08X%08X\n",
+	printf("Device Serial Number: 0x%08X%08X\n",
 		read_partid_serialno.serial_no[2],
 		read_partid_serialno.serial_no[3]);
 	
