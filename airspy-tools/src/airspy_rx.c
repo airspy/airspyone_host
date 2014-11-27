@@ -203,13 +203,19 @@ airspy_read_partid_serialno_t read_partid_serialno;
 volatile bool do_exit = false;
 
 FILE* fd = NULL;
-volatile uint32_t byte_count = 0;
 
 bool receive = false;
 bool receive_wav = false;
 
 struct timeval time_start;
 struct timeval t_start;
+
+bool got_first_packet = false;
+float average_rate = 0.0f;
+float global_average_rate = 0.0f;
+uint32_t rate_samples = 0;
+uint32_t buffer_count = 0;
+uint32_t sample_count = 0;
 	
 bool freq = false;
 uint32_t freq_hz;
@@ -341,53 +347,69 @@ char* u64toa(uint64_t val, t_u64toa* str)
 int rx_callback(airspy_transfer_t* transfer)
 {
 	uint32_t bytes_to_write;
-	uint32_t nb_data;
 	void* pt_rx_buffer;
 	ssize_t bytes_written;
+	struct timeval time_now;
+	float time_difference, rate;
 
 	if( fd != NULL ) 
 	{
 		switch(sample_type_val)
 		{
 			case AIRSPY_SAMPLE_FLOAT32_IQ:
-				nb_data = transfer->sample_count * FLOAT32_EL_SIZE_BYTE * 2;
-				byte_count += nb_data;
-				bytes_to_write = nb_data;
+				bytes_to_write = transfer->sample_count * FLOAT32_EL_SIZE_BYTE * 2;
 				pt_rx_buffer = transfer->samples;
-			break;
+				break;
 
 			case AIRSPY_SAMPLE_FLOAT32_REAL:
-				nb_data = transfer->sample_count * FLOAT32_EL_SIZE_BYTE * 1;
-				byte_count += nb_data;
-				bytes_to_write = nb_data;
+				bytes_to_write = transfer->sample_count * FLOAT32_EL_SIZE_BYTE * 1;
 				pt_rx_buffer = transfer->samples;
-			break;
+				break;
 
 			case AIRSPY_SAMPLE_INT16_IQ:
-				nb_data = transfer->sample_count * INT16_EL_SIZE_BYTE * 2;
-				byte_count += nb_data;
-				bytes_to_write = nb_data;
+				bytes_to_write = transfer->sample_count * INT16_EL_SIZE_BYTE * 2;
 				pt_rx_buffer = transfer->samples;
-			break;
+				break;
 
 			case AIRSPY_SAMPLE_INT16_REAL:
-				nb_data = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
-				byte_count += nb_data;
-				bytes_to_write = nb_data;
+				bytes_to_write = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
 				pt_rx_buffer = transfer->samples;
-			break;
+				break;
 
 			case AIRSPY_SAMPLE_UINT16_REAL:
-				nb_data = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
-				byte_count += nb_data;
-				bytes_to_write = nb_data;
+				bytes_to_write = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
 				pt_rx_buffer = transfer->samples;
-			break;
+				break;
 
 			default:
 				bytes_to_write = 0;
 				pt_rx_buffer = NULL;
 			break;
+		}
+
+		gettimeofday(&time_now, NULL);
+
+		if (!got_first_packet)
+		{
+			t_start = time_now;
+			time_start = time_now;
+			got_first_packet = true;
+		}
+		else
+		{
+			buffer_count++;
+			sample_count += transfer->sample_count;
+			if (buffer_count == 50)
+			{
+				time_difference = TimevalDiff(&time_now, &time_start);
+				rate = (float) sample_count / time_difference;
+				average_rate += 0.2f * (rate - average_rate);
+				global_average_rate += average_rate;
+				rate_samples++;
+				time_start = time_now;
+				sample_count = 0;
+				buffer_count = 0;
+			}
 		}
 
 		if (limit_num_samples) {
@@ -471,10 +493,10 @@ int main(int argc, char** argv)
 	int result;
 	time_t rawtime;
 	struct tm * timeinfo;
-	uint32_t file_pos;
-	int exit_code = EXIT_SUCCESS;
 	struct timeval t_end;
 	float time_diff;
+	uint32_t file_pos;
+	int exit_code = EXIT_SUCCESS;
 	uint32_t sample_rate_u32;
 	uint32_t sample_type_u32;
 	double freq_hz_temp;
@@ -613,6 +635,11 @@ int main(int argc, char** argv)
 			usage();
 			return EXIT_FAILURE;
 		}		
+	}
+
+	if (wav_nb_channels == 1)
+	{
+		wav_sample_per_sec *= 2;
 	}
 
 	if (samples_to_xfer >= SAMPLES_TO_XFER_MAX_U64) {
@@ -839,35 +866,26 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	gettimeofday(&t_start, NULL);
-	gettimeofday(&time_start, NULL);
-
 	printf("Stop with Ctrl-C\n");
+
+	average_rate = (float) wav_sample_per_sec;
+
+	sleep(1);
+
 	while( (airspy_is_streaming(device) == AIRSPY_TRUE) &&
 			(do_exit == false) ) 
 	{
-		uint32_t byte_count_now;
-		struct timeval time_now;
-		float time_difference, rate;
+		float average_rate_now = average_rate * 1e-6f;
+
+		//if (average_rate_now < 10000000) {
+		//	exit_code = EXIT_FAILURE;
+		//	printf("\nCouldn't transfer any samples for one second.\n");
+		//	break;
+		//}
+
+		printf("Streaming at %*2.2f MSPS\n", 1, average_rate_now);
+
 		sleep(1);
-		
-		gettimeofday(&time_now, NULL);
-		
-		byte_count_now = byte_count;
-		byte_count = 0;
-		
-		time_difference = TimevalDiff(&time_now, &time_start);
-		rate = (float)byte_count_now / time_difference;
-		printf("%4.3f MiB / %4.1f sec = %4.3f MiB/second\n",
-				(byte_count_now / 1e6f), time_difference, (rate / 1e6f) );
-
-		time_start = time_now;
-
-		if (byte_count_now == 0) {
-			exit_code = EXIT_FAILURE;
-			printf("\nCouldn't transfer any bytes for one second.\n");
-			break;
-		}
 	}
 	
 	result = airspy_is_streaming(device);	
@@ -880,27 +898,26 @@ int main(int argc, char** argv)
 	
 	gettimeofday(&t_end, NULL);
 	time_diff = TimevalDiff(&t_end, &t_start);
-	printf("Total time: %5.5f s\n", time_diff);
+	printf("Total time: %5.4f s\n", time_diff);
+	if (rate_samples > 0)
+	{
+		printf("Average speed %2.4f MSPS %s\n", (global_average_rate * 1e-6f / rate_samples), (wav_nb_channels == 2 ? "IQ" : "Real"));
+	}
 	
 	if(device != NULL)
 	{
 		result = airspy_stop_rx(device);
 		if( result != AIRSPY_SUCCESS ) {
 			printf("airspy_stop_rx() failed: %s (%d)\n", airspy_error_name(result), result);
-		}else {
-			printf("airspy_stop_rx() done\n");
 		}
 
 		result = airspy_close(device);
 		if( result != AIRSPY_SUCCESS ) 
 		{
 			printf("airspy_close() failed: %s (%d)\n", airspy_error_name(result), result);
-		}else {
-			printf("airspy_close() done\n");
 		}
 		
 		airspy_exit();
-		printf("airspy_exit() done\n");
 	}
 		
 	if(fd != NULL)
@@ -926,8 +943,7 @@ int main(int argc, char** argv)
 		}	
 		fclose(fd);
 		fd = NULL;
-		printf("fclose(fd) done\n");
 	}
-	printf("exit\n");
+	printf("done\n");
 	return exit_code;
 }
