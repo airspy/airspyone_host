@@ -353,6 +353,7 @@ static void* conversion_threadproc(void *arg)
 
 static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer)
 {
+	uint16_t *temp;
 	airspy_device_t* device = (airspy_device_t*) usb_transfer->user_data;
 
 	if (!device->streaming || device->stop_requested)
@@ -360,21 +361,21 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 		return;
 	}
 
-	if (device->received_samples_queue_head == device->received_samples_queue_tail && !device->converter_is_waiting)
-	{
-		return;
-	}
-	
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
-		memcpy(device->received_samples_queue[device->received_samples_queue_head], usb_transfer->buffer, usb_transfer->length);
-		device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
-		
-		if (device->converter_is_waiting)
+		if (device->received_samples_queue_head != device->received_samples_queue_tail || device->converter_is_waiting)
 		{
-			pthread_mutex_lock(&device->conversion_mp);
-			pthread_cond_signal(&device->conversion_cv);
-			pthread_mutex_unlock(&device->conversion_mp);
+			temp = device->received_samples_queue[device->received_samples_queue_head];
+			device->received_samples_queue[device->received_samples_queue_head] = usb_transfer->buffer;
+			usb_transfer->buffer = temp;
+			device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
+
+			if (device->converter_is_waiting)
+			{
+				pthread_mutex_lock(&device->conversion_mp);
+				pthread_cond_signal(&device->conversion_cv);
+				pthread_mutex_unlock(&device->conversion_mp);
+			}
 		}
 	}
 
