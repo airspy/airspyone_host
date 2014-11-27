@@ -621,7 +621,6 @@ int main(int argc, char** argv)
 			case 'n':
 				limit_num_samples = true;
 				result = parse_u64(optarg, &samples_to_xfer);
-				bytes_to_xfer = samples_to_xfer * 2;
 			break;
 
 			default:
@@ -636,6 +635,8 @@ int main(int argc, char** argv)
 			return EXIT_FAILURE;
 		}		
 	}
+
+	bytes_to_xfer = samples_to_xfer * wav_nb_byte_per_sample * wav_nb_channels;
 
 	if (wav_nb_channels == 1)
 	{
@@ -872,19 +873,11 @@ int main(int argc, char** argv)
 
 	sleep(1);
 
-	while( (airspy_is_streaming(device) == AIRSPY_TRUE) &&
-			(do_exit == false) ) 
+	while( ((airspy_is_streaming(device) == AIRSPY_TRUE) &&
+		(do_exit == false)) && ((limit_num_samples == true) && (bytes_to_xfer > 0)))
 	{
 		float average_rate_now = average_rate * 1e-6f;
-
-		//if (average_rate_now < 10000000) {
-		//	exit_code = EXIT_FAILURE;
-		//	printf("\nCouldn't transfer any samples for one second.\n");
-		//	break;
-		//}
-
 		printf("Streaming at %*2.2f MSPS\n", 1, average_rate_now);
-
 		sleep(1);
 	}
 	
@@ -893,7 +886,7 @@ int main(int argc, char** argv)
 	{
 		printf("\nUser cancel, exiting...\n");
 	} else {
-		printf("\nExiting... airspy_is_streaming() result: %s (%d)\n", airspy_error_name(result), result);
+		printf("\nExiting...\n");
 	}
 	
 	gettimeofday(&t_end, NULL);
