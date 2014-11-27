@@ -500,6 +500,7 @@ int main(int argc, char** argv)
 	uint32_t sample_rate_u32;
 	uint32_t sample_type_u32;
 	double freq_hz_temp;
+	char str[20];
 
 	while( (opt = getopt(argc, argv, "r:ws:f:a:t:b:v:m:l:n:")) != EOF )
 	{
@@ -873,12 +874,17 @@ int main(int argc, char** argv)
 
 	sleep(1);
 
-	while( ((airspy_is_streaming(device) == AIRSPY_TRUE) &&
-		(do_exit == false)) && ((limit_num_samples == true) && (bytes_to_xfer > 0)))
+	while( (airspy_is_streaming(device) == AIRSPY_TRUE) &&
+		(do_exit == false) )
 	{
 		float average_rate_now = average_rate * 1e-6f;
-		printf("Streaming at %*2.2f MSPS\n", 1, average_rate_now);
-		sleep(1);
+		sprintf(str, "%2.2f", average_rate_now);
+		average_rate_now = 9.5f;
+		printf("Streaming at %5s MSPS\n", str);
+		if ((limit_num_samples == true) && (bytes_to_xfer == 0))
+			do_exit = true;
+		else
+			sleep(1);
 	}
 	
 	result = airspy_is_streaming(device);	
