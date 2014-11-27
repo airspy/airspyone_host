@@ -332,6 +332,10 @@ static void* conversion_threadproc(void *arg)
 		case AIRSPY_SAMPLE_UINT16_REAL:
 			transfer.samples = input_samples;
 			break;
+
+		case AIRSPY_SAMPLE_END:
+			// Just to shut GCC's moaning
+			break;
 		}
 
 		transfer.device = device;
@@ -366,8 +370,8 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 		if (device->received_samples_queue_head != device->received_samples_queue_tail || device->converter_is_waiting)
 		{
 			temp = device->received_samples_queue[device->received_samples_queue_head];
-			device->received_samples_queue[device->received_samples_queue_head] = usb_transfer->buffer;
-			usb_transfer->buffer = temp;
+			device->received_samples_queue[device->received_samples_queue_head] = (uint16_t *) usb_transfer->buffer;
+			usb_transfer->buffer = (uint8_t *) temp;
 			device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
 
 			if (device->converter_is_waiting)
@@ -639,7 +643,7 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 
 	lib_device->transfers = NULL;
 	lib_device->callback = NULL;
-	lib_device->transfer_count = 32;
+	lib_device->transfer_count = 16;
 	lib_device->buffer_size = 262144;
 	lib_device->streaming = false;
 	lib_device->stop_requested = false;
