@@ -42,6 +42,7 @@ THE SOFTWARE.
 #else
 	#if (_MSC_VER >= 1300)
 		#define FIR_USE_SSE2
+		#include <immintrin.h>
 	#endif
 #endif
 
@@ -133,44 +134,35 @@ void iqconverter_float_free(iqconveter_float_t *cnv)
 
 #ifdef FIR_USE_SSE2 /* VC only */
 
-_inline float process_folded_fir_sse2(float *kernel, float *queue_head, float *queue_tail, int len)
+_inline float process_folded_fir_sse2(const float *fir_kernel, const float *queue_head, const float *queue_tail, int len)
 {
-	float acc;
+	__m128 acc = _mm_set_ps(0, 0, 0, 0);
 
-	_asm
+	queue_tail -= 3;
+
+	len >>= 2;
+	while (len > 0)
 	{
-			mov         eax, kernel
-			mov         esi, queue_head
-			mov         edi, queue_tail
-			sub         edi, 12
-			mov         ecx, len
-			shr         ecx, 2
-			xorps       xmm3, xmm3
+		__m128 head = _mm_loadu_ps(queue_head);
+		__m128 tail = _mm_loadu_ps(queue_tail);
+		__m128 kern = _mm_loadu_ps(fir_kernel);
 
-firloop:
-			movups      xmm0, xmmword ptr[esi]
-			movups      xmm1, xmmword ptr[edi]
-			add         esi, 16
-			sub         edi, 16
-			shufps      xmm1, xmm1, 0x1b			; Swap the floats.http://www.songho.ca/misc/sse/sse.html
-			addps       xmm1, xmm0
-			movups      xmm0, xmmword ptr[eax]
-			mulps       xmm1, xmm0
-			add         eax, 16
-			addps       xmm3, xmm1
-			dec         ecx
-			jnz         firloop
+		tail = _mm_shuffle_ps(tail, tail, 0x1b);  // swap the order
+		__m128 t1 = _mm_add_ps(tail, head);       // add the head
+		t1 = _mm_mul_ps(t1, kern);                // mul
+		acc = _mm_add_ps(acc, t1);                // add
 
-			movaps      xmm2, xmm3
-			movhlps     xmm2, xmm3
-			addps       xmm2, xmm3
-			movaps      xmm0, xmm2
-			shufps      xmm0, xmm2, 0xf5
-			addss       xmm2, xmm0
-			movd        acc, xmm2
+		queue_head += 4;
+		queue_tail -= 4;
+		fir_kernel += 4;
+		len--;
 	}
 
-	return acc;
+	// horizontal sum
+	const __m128 t = _mm_add_ps(acc, _mm_movehl_ps(acc, acc));
+	const __m128 sum = _mm_add_ss(t, _mm_shuffle_ps(t, t, 1));
+
+	return sum.m128_f32[0];
 }
 
 #endif
@@ -294,7 +286,7 @@ static void delay_interleaved(iqconveter_float_t *cnv, float *samples, int len)
 	cnv->delay_index = index;
 }
 
-#define SCALE   (1.0/1.158384440e+00)
+#define SCALE   (1.0f/1.158384440e+00f)
 
 static void apply_bpf(iqconveter_float_t *cnv, float *samples, int len)
 {
