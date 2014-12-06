@@ -340,7 +340,6 @@ static void* conversion_threadproc(void *arg)
 
 		transfer.device = device;
 		transfer.ctx = device->ctx;
-		transfer.samples = device->output_buffer;
 		transfer.sample_count = sample_count;
 		transfer.sample_type = device->sample_type;
 
