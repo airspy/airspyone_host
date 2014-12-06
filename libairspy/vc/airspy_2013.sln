@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "airspy", "airspy_2013.vcxproj", "{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}"
 EndProject
@@ -32,10 +32,12 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Debug|Win32.Build.0 = Debug|Win32
-		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Debug|x64.ActiveCfg = Debug|Win32
+		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Debug|x64.ActiveCfg = Debug|x64
+		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Debug|x64.Build.0 = Debug|x64
 		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Release|Win32.ActiveCfg = Release|Win32
 		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Release|Win32.Build.0 = Release|Win32
-		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Release|x64.ActiveCfg = Release|Win32
+		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Release|x64.ActiveCfg = Release|x64
+		{7A6C1D5C-37FC-436E-8E7B-1EB3B2B3716D}.Release|x64.Build.0 = Release|x64
 		{BCA73C04-5A94-420B-877E-FE9692740FA4}.Debug|Win32.ActiveCfg = Debug|Win32
 		{BCA73C04-5A94-420B-877E-FE9692740FA4}.Debug|Win32.Build.0 = Debug|Win32
 		{BCA73C04-5A94-420B-877E-FE9692740FA4}.Debug|x64.ActiveCfg = Debug|x64
