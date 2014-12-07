@@ -1191,6 +1191,9 @@ extern "C"
 		uint8_t retval;
 		uint8_t length;
 
+		if (value > 14)
+			value = 14;
+
 		length = 1;
 
 		result = libusb_control_transfer(
@@ -1218,6 +1221,9 @@ extern "C"
 		uint8_t retval;
 		uint8_t length;
 
+		if (value > 15)
+			value = 15;
+
 		length = 1;
 
 		result = libusb_control_transfer(
@@ -1244,6 +1250,9 @@ extern "C"
 		int result;
 		uint8_t retval;
 		uint8_t length;
+
+		if (value > 15)
+			value = 15;
 
 		length = 1;
 
