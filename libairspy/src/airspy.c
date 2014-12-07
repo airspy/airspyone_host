@@ -488,6 +488,19 @@ static void airspy_open_exit(airspy_device_t* device)
 	device->usb_context = NULL;
 }
 
+static void upper_string(char *string, size_t len)
+{
+	while (len > 0)
+	{
+		if (*string >= 'a' && *string <= 'z')
+		{
+			*string = *string - 32;
+		}
+		string++;
+		len--;
+	}
+}
+
 static void airspy_open_device(airspy_device_t* device,
 								int* ret,
 								uint16_t vid,
@@ -546,6 +559,7 @@ static void airspy_open_device(airspy_device_t* device,
 					if (serial_number_len == SERIAL_AIRSPY_EXPECTED_SIZE)
 					{
 						serial_number[SERIAL_AIRSPY_EXPECTED_SIZE] = 0;
+						upper_string(serial_number, SERIAL_AIRSPY_EXPECTED_SIZE);
 						serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
 						serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
 
