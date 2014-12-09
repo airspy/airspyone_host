@@ -29,9 +29,14 @@ THE SOFTWARE.
   #define _aligned_malloc __mingw_aligned_malloc
   #define _aligned_free  __mingw_aligned_free
   #define _inline inline
-#elif defined(__GNUC__)
+#elif defined(__APPLE__)
   #include <malloc/malloc.h>
   #define _aligned_malloc(size, alignment) malloc(size)
+  #define _aligned_free(mem) free(mem)
+  #define _inline inline
+#elif defined(__GNUC__)
+  #include <malloc.h>
+  #define _aligned_malloc(size, alignment) memalign(alignment, size)
   #define _aligned_free(mem) free(mem)
   #define _inline inline
 #endif
