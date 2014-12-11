@@ -488,7 +488,7 @@ static void airspy_open_exit(airspy_device_t* device)
 	device->usb_context = NULL;
 }
 
-static void upper_string(char *string, size_t len)
+static void upper_string(unsigned char *string, size_t len)
 {
 	while (len > 0)
 	{
