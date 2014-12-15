@@ -151,6 +151,7 @@ extern ADDAPI int ADDCALL airspy_spiflash_write(struct airspy_device* device, co
 extern ADDAPI int ADDCALL airspy_spiflash_read(struct airspy_device* device, const uint32_t address, const uint16_t length, unsigned char* data);
 
 extern ADDAPI int ADDCALL airspy_board_id_read(struct airspy_device* device, uint8_t* value);
+/* Parameter length shall be at least 128bytes */
 extern ADDAPI int ADDCALL airspy_version_string_read(struct airspy_device* device, char* version, uint8_t length);
 
 extern ADDAPI int ADDCALL airspy_board_partid_serialno_read(struct airspy_device* device, airspy_read_partid_serialno_t* read_partid_serialno);
