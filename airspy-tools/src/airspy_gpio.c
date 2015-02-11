@@ -172,7 +172,7 @@ int write_port_pin(struct airspy_device* device,
 	if( result == AIRSPY_SUCCESS ) {
 		printf("0x%02X -> gpio[%1d][%2d]\n", value, port_number, pin_number);
 	} else {
-		printf("airspy_r820t_write() failed: %s (%d)\n", airspy_error_name(result), result);
+		printf("airspy_gpio_write() failed: %s (%d)\n", airspy_error_name(result), result);
 	}
 	return result;
 }
