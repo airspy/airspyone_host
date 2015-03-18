@@ -570,6 +570,20 @@ static void airspy_open_device(airspy_device_t* device,
 
 						if (strncmp((const char*)serial_number, serial_number_expected, SERIAL_AIRSPY_EXPECTED_SIZE) == 0)
 						{
+							result = libusb_set_configuration(dev_handle, 1);
+							if (result != 0)
+							{
+								libusb_close(dev_handle);
+								*libusb_dev_handle = NULL;
+								continue;
+							}
+							result = libusb_claim_interface(dev_handle, 0);
+							if (result != 0)
+							{
+								libusb_close(dev_handle);
+								*libusb_dev_handle = NULL;
+								continue;
+							}
 							break;
 						} else
 						{
