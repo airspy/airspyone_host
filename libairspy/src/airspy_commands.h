@@ -35,12 +35,19 @@ typedef enum
 	RECEIVER_MODE_RX = 1
 } receiver_mode_t;
 
+/*
+  Note: airspy_samplerate_t is now obsolete and left for backward compatibility.
+  The list of supported sample rates should be retrieved at run time by calling airspy_get_samplerates().
+  Refer to the Airspy Tools for illustrations.
+*/
 typedef enum 
 {
 	AIRSPY_SAMPLERATE_10MSPS = 0, /* 12bits 10MHz IQ */
 	AIRSPY_SAMPLERATE_2_5MSPS = 1, /* 12bits 2.5MHz IQ */
 	AIRSPY_SAMPLERATE_END = 2 /* End index for sample rate (corresponds to number of samplerate) */
 } airspy_samplerate_t;
+
+
 #define AIRSPY_CONF_CMD_SHIFT_BIT (3) // Up to 3bits=8 samplerates (airspy_samplerate_t enum shall not exceed 7)
 
 // Commands (usb vendor request) shared between Firmware and Host.

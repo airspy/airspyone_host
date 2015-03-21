@@ -78,8 +78,11 @@ uint64_t serial_number_val;
 int main(int argc, char** argv)
 {
 	int i;
+	uint32_t j;
 	int result;
 	int opt;
+	uint32_t count;
+	uint32_t *samplerates;
 	uint32_t serial_number_msb_val;
 	uint32_t serial_number_lsb_val;
 	uint8_t board_id = AIRSPY_BOARD_ID_INVALID;
@@ -172,6 +175,16 @@ int main(int argc, char** argv)
 			printf("Serial Number: 0x%08X%08X\n",
 				read_partid_serialno.serial_no[2],
 				read_partid_serialno.serial_no[3]);
+
+			printf("Supported sample rates:\n");
+			airspy_get_samplerates(devices[i], &count, 0);
+			samplerates = (uint32_t *) malloc(count * sizeof(uint32_t));
+			airspy_get_samplerates(devices[i], samplerates, count);
+			for (j = 0; j < count; j++)
+			{
+				printf("\t%f MSPS\n", samplerates[j] * 0.000001f);
+			}
+			free(samplerates);
 
 			printf("Close board %d\n", i+1);
 			result = airspy_close(devices[i]);

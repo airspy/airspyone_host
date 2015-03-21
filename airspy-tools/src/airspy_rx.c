@@ -97,8 +97,6 @@ int gettimeofday(struct timeval *tv, void* ignored)
 #define FREQ_ONE_MHZ (1000000ul)
 #define FREQ_ONE_MHZ_U64 (1000000ull)
 
-#define DEFAULT_SAMPLE_RATE_HZ (10000000) /* 10MHz airspy sample rate */
-#define DEFAULT_SAMPLE_RATE (AIRSPY_SAMPLERATE_10MSPS)
 #define DEFAULT_SAMPLE_TYPE (AIRSPY_SAMPLE_INT16_IQ)
 
 #define DEFAULT_FREQ_HZ (900000000ul) /* 900MHz */
@@ -109,7 +107,6 @@ int gettimeofday(struct timeval *tv, void* ignored)
 
 #define FREQ_HZ_MIN (24000000ul) /* 24MHz */
 #define FREQ_HZ_MAX (1900000000ul) /* 1900MHz (officially 1750MHz) */
-#define SAMPLE_RATE_MAX (AIRSPY_SAMPLERATE_END-1)
 #define SAMPLE_TYPE_MAX (AIRSPY_SAMPLE_END-1)
 #define BIAST_MAX (1)
 #define VGA_GAIN_MAX (15)
@@ -194,7 +191,7 @@ unsigned int mixer_gain = DEFAULT_MIXER_GAIN;
 /* WAV default values */
 uint16_t wav_format_tag=1; /* PCM8 or PCM16 */
 uint16_t wav_nb_channels=2;
-uint32_t wav_sample_per_sec = DEFAULT_SAMPLE_RATE_HZ;
+uint32_t wav_sample_per_sec;
 uint16_t wav_nb_byte_per_sample=2;
 uint16_t wav_nb_bits_per_sample=16;
 
@@ -226,7 +223,7 @@ uint64_t samples_to_xfer = 0;
 uint64_t bytes_to_xfer = 0;
 
 bool sample_rate = false;
-airspy_samplerate_t sample_rate_val;
+uint32_t sample_rate_val;
 
 bool sample_type = false;
 enum airspy_sample_type sample_type_val = AIRSPY_SAMPLE_INT16_IQ;
@@ -449,7 +446,7 @@ static void usage(void)
 	printf("[-s serial_number_64bits]: Open device with specified 64bits serial number\n");
 	printf("[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu] (default %luMHz)\n",
 		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
-	printf("[-a sample_rate]: Set sample rate, 0=10MSPS(default), 1=2.5MSPS\n");
+	printf("[-a sample_rate]: Set sample rate\n");
 	printf("[-t sample_type]: Set sample type, \n");
 	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_REAL\n");
 	printf("[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
@@ -499,6 +496,9 @@ int main(int argc, char** argv)
 	float time_diff;
 	uint32_t file_pos;
 	int exit_code = EXIT_SUCCESS;
+
+	uint32_t count;
+	uint32_t *supported_samplerates;
 	uint32_t sample_rate_u32;
 	uint32_t sample_type_u32;
 	double freq_hz_temp;
@@ -532,25 +532,9 @@ int main(int argc, char** argv)
 					freq_hz = UINT_MAX;
 			break;
 
-			case 'a': /* Sample rate see also airspy_samplerate_t */
+			case 'a': /* Sample rate */
+				sample_rate = true;
 				result = parse_u32(optarg, &sample_rate_u32);
-				switch (sample_rate_u32)
-				{
-					case 0:
-						sample_rate_val = AIRSPY_SAMPLERATE_10MSPS;
-						wav_sample_per_sec = 10000000;
-					break;
-
-					case 1:
-						sample_rate_val = AIRSPY_SAMPLERATE_2_5MSPS;
-						wav_sample_per_sec = 2500000;
-					break;
-
-					default:
-						/* Invalid value will display error */
-						sample_rate_val = SAMPLE_RATE_MAX+1;
-					break;
-				}
 			break;
 
 			case 't': /* Sample type see also airspy_sample_type */
@@ -643,12 +627,12 @@ int main(int argc, char** argv)
 		}		
 	}
 
-	bytes_to_xfer = samples_to_xfer * wav_nb_byte_per_sample * wav_nb_channels;
-
-	if (wav_nb_channels == 1)
+	if (sample_rate)
 	{
-		wav_sample_per_sec *= 2;
+		sample_rate_val = sample_rate_u32;
 	}
+
+	bytes_to_xfer = samples_to_xfer * wav_nb_byte_per_sample * wav_nb_channels;
 
 	if (samples_to_xfer >= SAMPLES_TO_XFER_MAX_U64) {
 		printf("argument error: num_samples must be less than %s/%sMio\n",
@@ -687,12 +671,6 @@ int main(int argc, char** argv)
 
 	if( path == NULL ) {
 		printf("error: you shall specify at least -r <with filename> or -w option\n");
-		usage();
-		return EXIT_FAILURE;
-	}
-
-	if(sample_rate_val > SAMPLE_RATE_MAX) {
-		printf("argument error: sample_rate out of range\n");
 		usage();
 		return EXIT_FAILURE;
 	}
@@ -738,7 +716,6 @@ int main(int argc, char** argv)
 		if(serial_number)
 			printf("serial_number_64bits -s 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
 		printf("frequency_MHz -f %.6fMHz (%sHz)\n",((double)freq_hz/(double)FREQ_ONE_MHZ), u64toa(freq_hz, &ascii_u64_data1) );
-		printf("sample_rate -a %d\n", sample_rate_val);
 		printf("sample_type -t %d\n", sample_type_val);
 		printf("biast -b %d\n", biast_val);
 		printf("vga_gain -v %u\n", vga_gain);
@@ -773,6 +750,31 @@ int main(int argc, char** argv)
 			airspy_exit();
 			return EXIT_FAILURE;
 		}
+	}
+
+	airspy_get_samplerates(device, &count, 0);
+
+	if (sample_rate_val < 0 || sample_rate_val >= count)
+	{
+		printf("argument error: sample rate out of range\n");
+		airspy_close(device);
+		airspy_exit();
+		return EXIT_FAILURE;
+	}
+
+	supported_samplerates = (uint32_t *) malloc(count * sizeof(uint32_t));
+	airspy_get_samplerates(device, supported_samplerates, count);
+	wav_sample_per_sec = supported_samplerates[sample_rate_val];
+	free(supported_samplerates);
+
+	if (wav_nb_channels == 1)
+	{
+		wav_sample_per_sec *= 2;
+	}
+
+	if (verbose)
+	{
+		printf("sample_rate -a %d (%f MSPS %s)\n", sample_rate_val, wav_sample_per_sec * 0.000001f, wav_nb_channels == 1 ? "Real" : "IQ");
 	}
 	
 	result = airspy_board_partid_serialno_read(device, &read_partid_serialno);

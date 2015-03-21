@@ -124,7 +124,7 @@ extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
 
 extern ADDAPI int ADDCALL airspy_get_samplerates(struct airspy_device* device, uint32_t* buffer, const uint32_t len);
-extern ADDAPI int ADDCALL airspy_set_samplerate(struct airspy_device* device, airspy_samplerate_t samplerate);
+extern ADDAPI int ADDCALL airspy_set_samplerate(struct airspy_device* device, uint32_t samplerate);
 
 extern ADDAPI int ADDCALL airspy_start_rx(struct airspy_device* device, airspy_sample_block_cb_fn callback, void* rx_ctx);
 extern ADDAPI int ADDCALL airspy_stop_rx(struct airspy_device* device);

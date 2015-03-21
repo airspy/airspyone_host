@@ -792,7 +792,7 @@ extern "C"
 		return AIRSPY_SUCCESS;
 	}
 
-	int ADDCALL airspy_set_samplerate(airspy_device_t* device, airspy_samplerate_t samplerate)
+	int ADDCALL airspy_set_samplerate(airspy_device_t* device, uint32_t samplerate)
 	{
 		int result;
 		uint8_t retval;
