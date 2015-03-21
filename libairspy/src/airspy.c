@@ -759,6 +759,39 @@ extern "C"
 		return result;
 	}
 
+	int ADDCALL airspy_get_samplerates(struct airspy_device* device, uint32_t* buffer, const uint32_t len)
+	{
+		int result;
+
+		result = libusb_control_transfer(
+			device->usb_device,
+			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+			AIRSPY_GET_SAMPLERATES,
+			len,
+			0,
+			(unsigned char*) buffer,
+			(len > 0 ? len : 1) * sizeof(uint32_t),
+			0);
+
+		if (result < 1)
+		{
+			if (len == 0)
+			{
+				*buffer = 2;
+			}
+			else if (len >= 2)
+			{
+				buffer[0] = 10000000;
+				buffer[1] = 2500000;
+			}
+			else
+			{
+				return AIRSPY_ERROR_INVALID_PARAM;
+			}
+		}
+		return AIRSPY_SUCCESS;
+	}
+
 	int ADDCALL airspy_set_samplerate(airspy_device_t* device, airspy_samplerate_t samplerate)
 	{
 		int result;
