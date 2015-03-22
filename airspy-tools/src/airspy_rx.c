@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.0 27 Nov 2014"
+#define AIRSPY_RX_VERSION "1.0.1 22 Mar 2015"
 
 #ifndef bool
 typedef int bool;
