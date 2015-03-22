@@ -767,8 +767,8 @@ extern "C"
 			device->usb_device,
 			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 			AIRSPY_GET_SAMPLERATES,
-			len,
 			0,
+			len,
 			(unsigned char*) buffer,
 			(len > 0 ? len : 1) * sizeof(uint32_t),
 			0);
