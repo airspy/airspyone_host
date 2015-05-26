@@ -570,13 +570,6 @@ static void airspy_open_device(airspy_device_t* device,
 
 						if (strncmp((const char*)serial_number, serial_number_expected, SERIAL_AIRSPY_EXPECTED_SIZE) == 0)
 						{
-							result = libusb_set_configuration(dev_handle, 1);
-							if (result != 0)
-							{
-								libusb_close(dev_handle);
-								*libusb_dev_handle = NULL;
-								continue;
-							}
 #ifdef __linux__
 							/* Check whether a kernel driver is attached to interface #0. If so, we'll 
 							 * need to detach it.
@@ -586,6 +579,13 @@ static void airspy_open_device(airspy_device_t* device,
 								libusb_detach_kernel_driver(dev_handle, 0);
 							}
 #endif
+							result = libusb_set_configuration(dev_handle, 1);
+							if (result != 0)
+							{
+								libusb_close(dev_handle);
+								*libusb_dev_handle = NULL;
+								continue;
+							}
 							result = libusb_claim_interface(dev_handle, 0);
 							if (result != 0)
 							{
@@ -612,13 +612,6 @@ static void airspy_open_device(airspy_device_t* device,
 				if (libusb_open(dev, libusb_dev_handle) == 0)
 				{
 					dev_handle = *libusb_dev_handle;
-					result = libusb_set_configuration(dev_handle, 1);
-					if (result != 0)
-					{
-						libusb_close(dev_handle);
-						*libusb_dev_handle = NULL;
-						continue;
-					}
 #ifdef __linux__
 					/* Check whether a kernel driver is attached to interface #0. If so, we'll 
 					 * need to detach it.
@@ -628,6 +621,13 @@ static void airspy_open_device(airspy_device_t* device,
 						libusb_detach_kernel_driver(dev_handle, 0);
 					}
 #endif
+					result = libusb_set_configuration(dev_handle, 1);
+					if (result != 0)
+					{
+						libusb_close(dev_handle);
+						*libusb_dev_handle = NULL;
+						continue;
+					}
 					result = libusb_claim_interface(dev_handle, 0);
 					if (result != 0)
 					{
