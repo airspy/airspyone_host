@@ -85,6 +85,8 @@ int main(int argc, char** argv)
 	uint32_t *samplerates;
 	uint32_t serial_number_msb_val;
 	uint32_t serial_number_lsb_val;
+	airspy_lib_version_t lib_version;
+	uint8_t packing;
 	uint8_t board_id = AIRSPY_BOARD_ID_INVALID;
 
 	while( (opt = getopt(argc, argv, "s:")) != EOF )
@@ -119,6 +121,10 @@ int main(int argc, char** argv)
 				airspy_error_name(result), result);
 		return EXIT_FAILURE;
 	}
+
+	airspy_lib_version(&lib_version);
+	printf("airspy_lib_version: %d.%d.%d\n", 
+					lib_version.major_version, lib_version.minor_version, lib_version.revision); 
 
 	for (i = 0; i < AIRSPY_MAX_DEVICE; i++)
 	{
@@ -185,6 +191,13 @@ int main(int argc, char** argv)
 				printf("\t%f MSPS\n", samplerates[j] * 0.000001f);
 			}
 			free(samplerates);
+
+			result = airspy_get_packing(devices[i], &packing);
+			if (result != AIRSPY_SUCCESS) {
+				fprintf(stderr, "airspy_get_packing() failed: %s (%d)\n",
+					airspy_error_name(result), result);
+			}
+			printf("Packing: %d\n", packing);
 
 			printf("Close board %d\n", i+1);
 			result = airspy_close(devices[i]);

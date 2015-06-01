@@ -1175,9 +1175,9 @@ extern "C"
 
 	int ADDCALL airspy_version_string_read(airspy_device_t* device, char* version, uint8_t length)
 	{
+		#define VERSION_LOCAL_SIZE (128)
 		int result;
-
-		memset(version, 0, length);
+		char version_local[VERSION_LOCAL_SIZE];
 
 		result = libusb_control_transfer(
 		device->usb_device,
@@ -1185,8 +1185,8 @@ extern "C"
 		AIRSPY_VERSION_STRING_READ,
 		0,
 		0,
-		(unsigned char*)version,
-		(length-1),
+		(unsigned char*)version_local,
+		(VERSION_LOCAL_SIZE-1),
 		0);
 
 		if (result < 0)
@@ -1194,7 +1194,16 @@ extern "C"
 			return AIRSPY_ERROR_LIBUSB;
 		} else
 		{
-			return AIRSPY_SUCCESS;
+			if(length > 0)
+			{
+				memcpy(version, version_local, length-1);
+				version[length] = 0;
+				return AIRSPY_SUCCESS;
+			}
+			else
+			{
+				return AIRSPY_ERROR_INVALID_PARAM;
+			}
 		}
 	}
 
@@ -1411,6 +1420,27 @@ extern "C"
 	int ADDCALL airspy_set_rf_bias(airspy_device_t* device, uint8_t value)
 	{
 		return airspy_gpio_write(device, GPIO_PORT1, GPIO_PIN13, value);
+	}
+
+	int ADDCALL airspy_get_packing(airspy_device_t* device, uint8_t* value)
+	{
+		int result;
+		result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_GET_PACKING,
+		0,
+		0,
+		value,
+		1,
+		0);
+
+		if (result < 1)
+		{
+			/* Invalid not supported command return packing is not supported 0 */
+			*value = 0;
+		}
+		return AIRSPY_SUCCESS;
 	}
 
 	int ADDCALL airspy_is_streaming(airspy_device_t* device)
