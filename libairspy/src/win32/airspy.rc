@@ -26,7 +26,7 @@ BEGIN
       VALUE "FileDescription",	"AirSpy library\0"
       VALUE "FileVersion",	AIRSPY_VERSION "\0"
       VALUE "InternalName",	"airspy.dll\0"
-      VALUE "LegalCopyright",	"(C) 2013-2014 AirSpy\0"
+      VALUE "LegalCopyright",	"(C) 2013-2015 AirSpy\0"
       VALUE "OriginalFilename",	"airspy.dll\0"
       VALUE "ProductName",	"airspy\0"
       VALUE "ProductVersion",	AIRSPY_VERSION "\0"

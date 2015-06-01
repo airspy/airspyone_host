@@ -1404,6 +1404,27 @@ extern "C"
 		return airspy_gpio_write(device, GPIO_PORT1, GPIO_PIN13, value);
 	}
 
+	int ADDCALL airspy_get_packing(airspy_device_t* device, uint8_t* value)
+	{
+		int result;
+		result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_GET_PACKING,
+		0,
+		0,
+		value,
+		1,
+		0);
+
+		if (result < 1)
+		{
+			/* Invalid not supported command return packing is not supported 0 */
+			*value = 0;
+		}
+		return AIRSPY_SUCCESS;
+	}
+
 	int ADDCALL airspy_is_streaming(airspy_device_t* device)
 	{
 		return device->streaming == true;

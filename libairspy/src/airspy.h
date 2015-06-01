@@ -28,10 +28,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include <stdint.h>
 #include "airspy_commands.h"
 
-#define AIRSPY_VERSION "1.0.5"
+#define AIRSPY_VERSION "1.0.6"
 #define AIRSPY_VER_MAJOR 1
 #define AIRSPY_VER_MINOR 0
-#define AIRSPY_VER_REVISION 5
+#define AIRSPY_VER_REVISION 6
 
 #ifdef _WIN32
 	 #define ADD_EXPORTS
@@ -184,6 +184,9 @@ extern ADDAPI int ADDCALL airspy_set_mixer_agc(struct airspy_device* device, uin
 
 /* Parameter value shall be 0=Disable BiasT or 1=Enable BiasT */
 extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
+
+/* Parameter value returned 0=No Packing used or 1=Packing used */
+extern ADDAPI int ADDCALL airspy_get_packing(struct airspy_device* device, uint8_t* value);
 
 extern ADDAPI const char* ADDCALL airspy_error_name(enum airspy_error errcode);
 extern ADDAPI const char* ADDCALL airspy_board_id_name(enum airspy_board_id board_id);
