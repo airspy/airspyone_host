@@ -1157,9 +1157,9 @@ extern "C"
 
 	int ADDCALL airspy_version_string_read(airspy_device_t* device, char* version, uint8_t length)
 	{
+		#define VERSION_LOCAL_SIZE (128)
 		int result;
-
-		memset(version, 0, length);
+		char version_local[VERSION_LOCAL_SIZE];
 
 		result = libusb_control_transfer(
 		device->usb_device,
@@ -1167,8 +1167,8 @@ extern "C"
 		AIRSPY_VERSION_STRING_READ,
 		0,
 		0,
-		(unsigned char*)version,
-		(length-1),
+		(unsigned char*)version_local,
+		(VERSION_LOCAL_SIZE-1),
 		0);
 
 		if (result < 0)
@@ -1176,7 +1176,16 @@ extern "C"
 			return AIRSPY_ERROR_LIBUSB;
 		} else
 		{
-			return AIRSPY_SUCCESS;
+			if(length > 0)
+			{
+				memcpy(version, version_local, length-1);
+				version[length] = 0;
+				return AIRSPY_SUCCESS;
+			}
+			else
+			{
+				return AIRSPY_ERROR_INVALID_PARAM;
+			}
 		}
 	}
 
