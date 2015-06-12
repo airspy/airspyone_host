@@ -699,7 +699,7 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 	*device = NULL;
 	packing_supported = 0;
 	
-	lib_device = (airspy_device_t*)malloc(sizeof(airspy_device_t));
+	lib_device = (airspy_device_t*)calloc(1, sizeof(airspy_device_t));
 	if(lib_device == NULL)
 	{
 		return AIRSPY_ERROR_NO_MEM;
