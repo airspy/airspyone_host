@@ -44,11 +44,11 @@ THE SOFTWARE.
 #define SIZE_FACTOR 2
 #define DEFAULT_ALIGNMENT 16
 
-iqconveter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
+iqconverter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
 {
 	int i;
 	size_t buffer_size;
-	iqconveter_int16_t *cnv = (iqconveter_int16_t *) _aligned_malloc(sizeof(iqconveter_int16_t), DEFAULT_ALIGNMENT);
+	iqconverter_int16_t *cnv = (iqconverter_int16_t *) _aligned_malloc(sizeof(iqconverter_int16_t), DEFAULT_ALIGNMENT);
 
 	cnv->old_x = 0;
 	cnv->old_y = 0;
@@ -70,7 +70,7 @@ iqconveter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
 	return cnv;
 }
 
-void iqconverter_int16_free(iqconveter_int16_t *cnv)
+void iqconverter_int16_free(iqconverter_int16_t *cnv)
 {
 	_aligned_free(cnv->fir_kernel);
 	_aligned_free(cnv->fir_queue);
@@ -78,7 +78,7 @@ void iqconverter_int16_free(iqconveter_int16_t *cnv)
 	_aligned_free(cnv);
 }
 
-static void fir_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len)
+static void fir_interleaved(iqconverter_int16_t *cnv, int16_t *samples, int len)
 {
 	int i;
 	int j;
@@ -116,7 +116,7 @@ static void fir_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len)
 	cnv->fir_index = fir_index;
 }
 
-static void delay_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len)
+static void delay_interleaved(iqconverter_int16_t *cnv, int16_t *samples, int len)
 {
 	int i;
 	int index;
@@ -141,7 +141,7 @@ static void delay_interleaved(iqconveter_int16_t *cnv, int16_t *samples, int len
 	cnv->delay_index = index;
 }
 
-static void remove_dc(iqconveter_int16_t *cnv, int16_t *samples, int len)
+static void remove_dc(iqconverter_int16_t *cnv, int16_t *samples, int len)
 {
 	int i;
 	int32_t u, old_e;
@@ -169,7 +169,7 @@ static void remove_dc(iqconveter_int16_t *cnv, int16_t *samples, int len)
 	cnv->old_e = old_e;
 }
 
-static void translate_fs_4(iqconveter_int16_t *cnv, int16_t *samples, int len)
+static void translate_fs_4(iqconverter_int16_t *cnv, int16_t *samples, int len)
 {
 	int i;
 
@@ -185,7 +185,7 @@ static void translate_fs_4(iqconveter_int16_t *cnv, int16_t *samples, int len)
 	delay_interleaved(cnv, samples + 1, len);
 }
 
-void iqconverter_int16_process(iqconveter_int16_t *cnv, int16_t *samples, int len)
+void iqconverter_int16_process(iqconverter_int16_t *cnv, int16_t *samples, int len)
 {
 	remove_dc(cnv, samples, len);
 	translate_fs_4(cnv, samples, len);

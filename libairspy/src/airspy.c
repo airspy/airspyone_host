@@ -87,8 +87,8 @@ typedef struct airspy_device
 	void *output_buffer;
 	uint16_t *unpacked_samples;
 	bool packing_supported;
-	iqconveter_float_t *cnv_f;
-	iqconveter_int16_t *cnv_i;
+	iqconverter_float_t *cnv_f;
+	iqconverter_int16_t *cnv_i;
 	void* ctx;
 	enum airspy_sample_type sample_type;
 } airspy_device_t;

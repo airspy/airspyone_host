@@ -56,7 +56,7 @@ THE SOFTWARE.
 #define DEFAULT_ALIGNMENT 16
 #define HPF_COEFF 0.01f
 
-iqconveter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
+iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 {
 	int i, j;
 
@@ -67,7 +67,7 @@ iqconveter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 
 #endif
 	size_t buffer_size;
-	iqconveter_float_t *cnv = (iqconveter_float_t *) _aligned_malloc(sizeof(iqconveter_float_t), DEFAULT_ALIGNMENT);
+	iqconverter_float_t *cnv = (iqconverter_float_t *) _aligned_malloc(sizeof(iqconverter_float_t), DEFAULT_ALIGNMENT);
 
 	for (i = 0; i < IQCONVERTER_NZEROS + 1; i++)
 	{
@@ -130,7 +130,7 @@ iqconveter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 	return cnv;
 }
 
-void iqconverter_float_free(iqconveter_float_t *cnv)
+void iqconverter_float_free(iqconverter_float_t *cnv)
 {
 	_aligned_free(cnv->fir_kernel);
 	_aligned_free(cnv->fir_queue);
@@ -173,7 +173,7 @@ _inline float process_folded_fir_sse2(const float *fir_kernel, const float *queu
 
 #endif
 
-static void fir_interleaved(iqconveter_float_t *cnv, float *samples, int len)
+static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
 
@@ -267,7 +267,7 @@ static void fir_interleaved(iqconveter_float_t *cnv, float *samples, int len)
 	cnv->fir_index = fir_index;
 }
 
-static void delay_interleaved(iqconveter_float_t *cnv, float *samples, int len)
+static void delay_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
 	int index;
@@ -294,7 +294,7 @@ static void delay_interleaved(iqconveter_float_t *cnv, float *samples, int len)
 
 #define SCALE   (1.0f/1.158384440e+00f)
 
-static void apply_bpf(iqconveter_float_t *cnv, float *samples, int len)
+static void apply_bpf(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
 
@@ -310,7 +310,7 @@ static void apply_bpf(iqconveter_float_t *cnv, float *samples, int len)
 	}
 }
 
-static void translate_fs_4(iqconveter_float_t *cnv, float *samples, int len)
+static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
 
@@ -326,7 +326,7 @@ static void translate_fs_4(iqconveter_float_t *cnv, float *samples, int len)
 	delay_interleaved(cnv, samples + 1, len);
 }
 
-void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len)
+void iqconverter_float_process(iqconverter_float_t *cnv, float *samples, int len)
 {
 	apply_bpf(cnv, samples, len);
 	translate_fs_4(cnv, samples, len);
