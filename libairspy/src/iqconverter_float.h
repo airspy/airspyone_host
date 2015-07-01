@@ -37,10 +37,10 @@ typedef struct {
 	float *fir_kernel;
 	float *fir_queue;
 	float *delay_line;
-} iqconveter_float_t;
+} iqconverter_float_t;
 
-iqconveter_float_t *iqconverter_float_create(const float *hb_kernel, int len);
-void iqconverter_float_free(iqconveter_float_t *cnv);
-void iqconverter_float_process(iqconveter_float_t *cnv, float *samples, int len);
+iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len);
+void iqconverter_float_free(iqconverter_float_t *cnv);
+void iqconverter_float_process(iqconverter_float_t *cnv, float *samples, int len);
 
 #endif // IQCONVERTER_FLOAT_H
