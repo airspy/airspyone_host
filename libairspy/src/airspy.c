@@ -86,7 +86,7 @@ typedef struct airspy_device
 	volatile bool converter_is_waiting;
 	void *output_buffer;
 	uint16_t *unpacked_samples;
-	bool packing_supported;
+	bool packing_enabled;
 	iqconverter_float_t *cnv_f;
 	iqconverter_int16_t *cnv_i;
 	void* ctx;
@@ -188,7 +188,7 @@ static int allocate_transfers(airspy_device_t* const device)
 			memset(device->received_samples_queue[i], 0, device->buffer_size);
 		}
 
-		if (device->packing_supported)
+		if (device->packing_enabled)
 		{
 			sample_count = ((device->buffer_size / 2) * 4) / 3;
 		}
@@ -203,7 +203,7 @@ static int allocate_transfers(airspy_device_t* const device)
 			return AIRSPY_ERROR_NO_MEM;
 		}
 		
-		if (device->packing_supported)
+		if (device->packing_enabled)
 		{
 			device->unpacked_samples = (uint16_t*)malloc(sample_count * sizeof(uint16_t));
 			if (device->unpacked_samples == NULL)
@@ -344,7 +344,7 @@ static void* conversion_threadproc(void *arg)
 
 		input_samples = device->received_samples_queue[device->received_samples_queue_tail];
 		
-		if (device->packing_supported)
+		if (device->packing_enabled)
 		{
 			sample_count = ((device->buffer_size / 2) * 4) / 3;
 
@@ -692,13 +692,11 @@ static void airspy_open_device(airspy_device_t* device,
 static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 {
 	airspy_device_t* lib_device;
-	uint8_t packing_supported;
 	int libusb_error;
 	int result;
 
 	*device = NULL;
-	packing_supported = 0;
-	
+
 	lib_device = (airspy_device_t*)calloc(1, sizeof(airspy_device_t));
 	if(lib_device == NULL)
 	{
@@ -724,25 +722,16 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 		return result;
 	}
 
-	airspy_get_packing(lib_device, &packing_supported);
-	lib_device->packing_supported = (packing_supported == 1)? true : false;
-	
 	lib_device->transfers = NULL;
 	lib_device->callback = NULL;
 	lib_device->transfer_count = 16;
-	
-	if(!lib_device->packing_supported)
-	{
-		lib_device->buffer_size = 262144;
-	}
-	else
-	{
-		lib_device->buffer_size = 6144 * 24;
-	}
-	
+	lib_device->buffer_size = 262144;
+	lib_device->packing_enabled = false;
 	lib_device->streaming = false;
 	lib_device->stop_requested = false;
 	lib_device->sample_type = AIRSPY_SAMPLE_FLOAT32_IQ;
+
+	airspy_set_packing(lib_device, 0);
 
 	result = allocate_transfers(lib_device);
 	if( result != 0 )
@@ -1475,25 +1464,49 @@ extern "C"
 		return airspy_gpio_write(device, GPIO_PORT1, GPIO_PIN13, value);
 	}
 
-	int ADDCALL airspy_get_packing(airspy_device_t* device, uint8_t* value)
+	int ADDCALL airspy_set_packing(airspy_device_t* device, uint8_t value)
 	{
 		int result;
+		uint8_t retval;
+		bool packing_enabled; 
+
+		if (device->streaming)
+		{
+			return AIRSPY_ERROR_BUSY;
+		}
+
 		result = libusb_control_transfer(
 		device->usb_device,
 		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-		AIRSPY_GET_PACKING,
-		0,
+		AIRSPY_SET_PACKING,
 		0,
 		value,
+		&retval,
 		1,
 		0);
 
 		if (result < 1)
-		{
-			/* Invalid not supported command return packing is not supported 0 */
-			*value = 0;
+		{			
+			return  AIRSPY_ERROR_LIBUSB;
 		}
-		return AIRSPY_SUCCESS;
+		
+		packing_enabled = value ? true : false;
+		if (packing_enabled != device->packing_enabled)
+		{			
+			cancel_transfers(device);
+			free_transfers(device);
+
+			device->packing_enabled = packing_enabled;
+			device->buffer_size = packing_enabled ? (6144 * 24) : 262144;
+			
+			result = allocate_transfers(device);
+			if (result != 0)
+			{
+				return AIRSPY_ERROR_NO_MEM;
+			}
+		}
+		
+		return AIRSPY_SUCCESS;	
 	}
 
 	int ADDCALL airspy_is_streaming(airspy_device_t* device)

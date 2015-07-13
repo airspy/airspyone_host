@@ -192,13 +192,6 @@ int main(int argc, char** argv)
 			}
 			free(samplerates);
 
-			result = airspy_get_packing(devices[i], &packing);
-			if (result != AIRSPY_SUCCESS) {
-				fprintf(stderr, "airspy_get_packing() failed: %s (%d)\n",
-					airspy_error_name(result), result);
-			}
-			printf("Packing: %d\n", packing);
-
 			printf("Close board %d\n", i+1);
 			result = airspy_close(devices[i]);
 			if (result != AIRSPY_SUCCESS) {

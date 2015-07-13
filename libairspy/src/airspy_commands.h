@@ -80,7 +80,7 @@ typedef enum
 	AIRSPY_GPIODIR_WRITE              = 23,
 	AIRSPY_GPIODIR_READ               = 24,
 	AIRSPY_GET_SAMPLERATES            = 25,
-	AIRSPY_GET_PACKING                = AIRSPY_CMD_MAX
+	AIRSPY_SET_PACKING				  = AIRSPY_CMD_MAX
 } airspy_vendor_request;
 
 typedef enum

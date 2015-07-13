@@ -185,8 +185,8 @@ extern ADDAPI int ADDCALL airspy_set_mixer_agc(struct airspy_device* device, uin
 /* Parameter value shall be 0=Disable BiasT or 1=Enable BiasT */
 extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
 
-/* Parameter value returned 0=No Packing used or 1=Packing used */
-extern ADDAPI int ADDCALL airspy_get_packing(struct airspy_device* device, uint8_t* value);
+/* Parameter value shall be 0=Disable Packing or 1=Enable Packing */
+extern ADDAPI int ADDCALL airspy_set_packing(struct airspy_device* device, uint8_t value);
 
 extern ADDAPI const char* ADDCALL airspy_error_name(enum airspy_error errcode);
 extern ADDAPI const char* ADDCALL airspy_board_id_name(enum airspy_board_id board_id);
