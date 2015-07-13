@@ -1,6 +1,6 @@
 /*
  * Copyright 2012 Jared Boone <jared@sharebrained.com>
- * Copyright 2014 Benjamin Vernoux <bvernoux@airspy.com>
+ * Copyright 2014-2015 Benjamin Vernoux <bvernoux@airspy.com>
  *
  * This file is part of AirSpy (based on HackRF project).
  *
@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.1 22 Mar 2015"
+#define AIRSPY_RX_VERSION "1.0.2 13 Jul 2015"
 
 #ifndef bool
 typedef int bool;
@@ -104,6 +104,8 @@ int gettimeofday(struct timeval *tv, void* ignored)
 #define DEFAULT_VGA_IF_GAIN (5)
 #define DEFAULT_LNA_GAIN (1)
 #define DEFAULT_MIXER_GAIN (5)
+
+#define PACKING_MAX (0xffffffff)
 
 #define FREQ_HZ_MIN (24000000ul) /* 24MHz */
 #define FREQ_HZ_MAX (1900000000ul) /* 1900MHz (officially 1750MHz) */
@@ -221,6 +223,9 @@ uint32_t freq_hz;
 bool limit_num_samples = false;
 uint64_t samples_to_xfer = 0;
 uint64_t bytes_to_xfer = 0;
+
+bool call_set_packing = false;
+uint32_t packing_val = 0;
 
 bool sample_rate = false;
 uint32_t sample_rate_val;
@@ -444,6 +449,8 @@ static void usage(void)
 	printf("-w Receive data into file with WAV header and automatic name\n");
 	printf(" This is for SDR# compatibility and may not work with other software\n");
 	printf("[-s serial_number_64bits]: Open device with specified 64bits serial number\n");
+	printf("[-p packing]: Set packing for samples, \n");
+	printf(" 1=enabled(12bits packed), 0=disabled(default 16bits not packed)\n");
 	printf("[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu] (default %luMHz)\n",
 		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
 	printf("[-a sample_rate]: Set sample rate\n");
@@ -498,13 +505,14 @@ int main(int argc, char** argv)
 	int exit_code = EXIT_SUCCESS;
 
 	uint32_t count;
+	uint32_t packing_val_u32;
 	uint32_t *supported_samplerates;
 	uint32_t sample_rate_u32;
 	uint32_t sample_type_u32;
 	double freq_hz_temp;
 	char str[20];
 
-	while( (opt = getopt(argc, argv, "r:ws:f:a:t:b:v:m:l:n:d")) != EOF )
+	while( (opt = getopt(argc, argv, "r:ws:p:f:a:t:b:v:m:l:n:d")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
@@ -521,6 +529,24 @@ int main(int argc, char** argv)
 			case 's':
 				serial_number = true;
 				result = parse_u64(optarg, &serial_number_val);
+			break;
+
+			case 'p': /* packing */
+				result = parse_u32(optarg, &packing_val_u32);
+				switch (packing_val_u32)
+				{
+					case 0:
+					case 1:
+						packing_val = packing_val_u32;
+						call_set_packing = true;
+					break;
+
+					default:
+						/* Invalid value will display error */
+						packing_val = PACKING_MAX;
+						call_set_packing = false;
+					break;
+				}
 			break;
 
 			case 'f':
@@ -675,6 +701,12 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
+	if(packing_val == PACKING_MAX) {
+		printf("argument error: packing out of range\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
 	if(sample_type_val > SAMPLE_TYPE_MAX) {
 		printf("argument error: sample_type out of range\n");
 		usage();
@@ -715,6 +747,7 @@ int main(int argc, char** argv)
 		serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
 		if(serial_number)
 			printf("serial_number_64bits -s 0x%08X%08X\n", serial_number_msb_val, serial_number_lsb_val);
+		printf("packing -p %d\n", packing_val);
 		printf("frequency_MHz -f %.6fMHz (%sHz)\n",((double)freq_hz/(double)FREQ_ONE_MHZ), u64toa(freq_hz, &ascii_u64_data1) );
 		printf("sample_type -t %d\n", sample_type_val);
 		printf("biast -b %d\n", biast_val);
@@ -788,7 +821,18 @@ int main(int argc, char** argv)
 	printf("Device Serial Number: 0x%08X%08X\n",
 		read_partid_serialno.serial_no[2],
 		read_partid_serialno.serial_no[3]);
-	
+
+	if( call_set_packing == true )
+	{
+		result = airspy_set_packing(device, packing_val);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_set_packing() failed: %s (%d)\n", airspy_error_name(result), result);
+			airspy_close(device);
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+	}
+
 	result = airspy_set_samplerate(device, sample_rate_val);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_samplerate() failed: %s (%d)\n", airspy_error_name(result), result);
