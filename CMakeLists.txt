@@ -24,7 +24,7 @@ add_custom_target(uninstall
 # Copy Files Win32 only
 ########################################################################
 
-if(WIN32)
+if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
  configure_file(
      ${CMAKE_CURRENT_BINARY_DIR}/../libs_win32/libusb-1.0.dll
      ${CMAKE_CURRENT_BINARY_DIR}/airspy-tools/src/libusb-1.0.dll
