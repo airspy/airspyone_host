@@ -52,7 +52,7 @@ THE SOFTWARE.
 	#endif
 #endif
 
-#define SIZE_FACTOR 2
+#define SIZE_FACTOR 16
 #define DEFAULT_ALIGNMENT 16
 #define HPF_COEFF 0.01f
 
