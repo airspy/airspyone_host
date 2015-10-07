@@ -29,8 +29,8 @@ THE SOFTWARE.
 #define IQCONVERTER_NPOLES 2
 
 typedef struct {
-	float x_delay[IQCONVERTER_NZEROS + 1];
-	float y_delay[IQCONVERTER_NPOLES + 1];
+	float avg;
+	float hbc;
 	int len;
 	int fir_index;
 	int delay_index;
@@ -41,6 +41,7 @@ typedef struct {
 
 iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len);
 void iqconverter_float_free(iqconverter_float_t *cnv);
+void iqconverter_float_reset(iqconverter_float_t *cnv);
 void iqconverter_float_process(iqconverter_float_t *cnv, float *samples, int len);
 
 #endif // IQCONVERTER_FLOAT_H

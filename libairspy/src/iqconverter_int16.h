@@ -39,6 +39,7 @@ typedef struct {
 
 iqconverter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len);
 void iqconverter_int16_free(iqconverter_int16_t *cnv);
+void iqconverter_int16_reset(iqconverter_int16_t *cnv);
 void iqconverter_int16_process(iqconverter_int16_t *cnv, int16_t *samples, int len);
 
 #endif // IQCONVERTER_INT16_H

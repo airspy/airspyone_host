@@ -47,12 +47,14 @@ THE SOFTWARE.
   //#define FIR_AUTO_VECTOR
 #else
 	#if (_MSC_VER >= 1300)
-		#define FIR_USE_SSE2
+		#define USE_SSE2
 		#include <immintrin.h>
+	#else
+		#define FIR_AUTO_VECTOR
 	#endif
 #endif
 
-#define SIZE_FACTOR 16
+#define SIZE_FACTOR 32
 #define DEFAULT_ALIGNMENT 16
 #define HPF_COEFF 0.01f
 
@@ -60,7 +62,7 @@ iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 {
 	int i, j;
 
-#ifdef FIR_USE_SSE2
+#ifdef USE_SSE2
 
 	int original_length;
 	int padding;
@@ -69,21 +71,10 @@ iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 	size_t buffer_size;
 	iqconverter_float_t *cnv = (iqconverter_float_t *) _aligned_malloc(sizeof(iqconverter_float_t), DEFAULT_ALIGNMENT);
 
-	for (i = 0; i < IQCONVERTER_NZEROS + 1; i++)
-	{
-		cnv->x_delay[i] = 0.0f;
-	}
-
-	for (i = 0; i < IQCONVERTER_NPOLES + 1; i++)
-	{
-		cnv->y_delay[i] = 0.0f;
-	}
-
-	cnv->delay_index = 0;
-	cnv->fir_index = 0;
 	cnv->len = len / 2 + 1;
+	cnv->hbc = hb_kernel[len / 2];
 
-#ifdef FIR_USE_SSE2
+#ifdef USE_SSE2
 
 	original_length = cnv->len;
 	padding = 0;
@@ -102,10 +93,9 @@ iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 	cnv->fir_queue = (float *) _aligned_malloc(buffer_size * SIZE_FACTOR, DEFAULT_ALIGNMENT);
 	cnv->delay_line = (float *) _aligned_malloc(buffer_size / 2, DEFAULT_ALIGNMENT);
 
-	memset(cnv->fir_queue, 0, buffer_size * SIZE_FACTOR);
-	memset(cnv->delay_line, 0, buffer_size / 2);
+	iqconverter_float_reset(cnv);
 
-#ifdef FIR_USE_SSE2
+#ifdef USE_SSE2
 
 	for (i = 0; i < padding / 2; i++)
 	{
@@ -138,7 +128,16 @@ void iqconverter_float_free(iqconverter_float_t *cnv)
 	_aligned_free(cnv);
 }
 
-#ifdef FIR_USE_SSE2 /* VC only */
+void iqconverter_float_reset(iqconverter_float_t *cnv)
+{
+	cnv->avg = 0.0f;
+	cnv->fir_index = 0;
+	cnv->delay_index = 0;
+	memset(cnv->delay_line, 0, cnv->len * sizeof(float) / 2);
+	memset(cnv->fir_queue, 0, cnv->len * sizeof(float) * SIZE_FACTOR);
+}
+
+#ifdef USE_SSE2 /* VC only */
 
 _inline float process_folded_fir_sse2(const float *fir_kernel, const float *queue_head, const float *queue_tail, int len)
 {
@@ -151,7 +150,7 @@ _inline float process_folded_fir_sse2(const float *fir_kernel, const float *queu
 	{
 		__m128 head = _mm_loadu_ps(queue_head);
 		__m128 tail = _mm_loadu_ps(queue_tail);
-		__m128 kern = _mm_loadu_ps(fir_kernel);
+		__m128 kern = _mm_load_ps(fir_kernel);
 
 		tail = _mm_shuffle_ps(tail, tail, 0x1b);  // swap the order
 		__m128 t1 = _mm_add_ps(tail, head);       // add the head
@@ -187,7 +186,7 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 	float *queue;
 	float acc;
 
-#if defined(FIR_USE_SSE2) | defined(FIR_STANDARD)
+#if defined(USE_SSE2) | defined(FIR_STANDARD)
 
 	float *ptr1;
 	float *ptr2;
@@ -205,7 +204,7 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 
 		fir_len = cnv->len;
 
-#ifdef FIR_USE_SSE2
+#ifdef USE_SSE2
 
 		ptr1 = cnv->fir_kernel;
 		ptr2 = queue;
@@ -220,7 +219,7 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 
 		acc = 0;
 
-		// Auto vectorization works on VS2012, VS2013 and GCC
+		// Auto vectorization works on VS2012, VS2013, VS2015 and GCC
 		for (j = 0; j < fir_len; j++)
 		{
 			acc += cnv->fir_kernel[j] * queue[j];
@@ -292,35 +291,56 @@ static void delay_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 	cnv->delay_index = index;
 }
 
-#define SCALE   (1.0f/1.158384440e+00f)
+#define SCALE (0.01f)
 
-static void apply_bpf(iqconverter_float_t *cnv, float *samples, int len)
+static void remove_dc(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
+	float avg = cnv->avg;
+	float sample;
 
 	for (i = 0; i < len; i++)
 	{
-		cnv->x_delay[0] = cnv->x_delay[1];
-		cnv->x_delay[1] = cnv->x_delay[2];
-		cnv->x_delay[2] = samples[i] * SCALE;
-		cnv->y_delay[0] = cnv->y_delay[1];
-		cnv->y_delay[1] = cnv->y_delay[2];
-		cnv->y_delay[2] = cnv->x_delay[2] - cnv->x_delay[0] + 0.7265425280f * cnv->y_delay[0];
-		samples[i] = cnv->y_delay[2];
+		sample = *samples - avg;
+		avg += SCALE * sample;
+		*samples++ = sample;
 	}
+
+	avg = cnv->avg;
 }
 
 static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
+	float hbc = cnv->hbc;
 
-	for (i = 0; i < len; i += 4)
+#if defined(USE_SSE2)
+
+	float *buf = samples;
+	__m128 vec;
+	__m128 rot = _mm_set_ps(hbc, 1.0f, -hbc, -1.0f);
+
+	for (i = 0; i < len / 4; i++, buf +=4)
 	{
-		samples[i + 0] = -samples[i + 0];
-		samples[i + 1] = -samples[i + 1] * 0.5f;
-		//samples[i + 2] = samples[i + 2];
-		samples[i + 3] = samples[i + 3] * 0.5f;
+		vec = _mm_loadu_ps(buf);
+		vec = _mm_mul_ps(vec, rot);
+		_mm_storeu_ps(buf, vec);
 	}
+
+#else
+
+	int j;
+
+	for (i = 0; i < len / 4; i++)
+	{
+		j = i << 2;
+		samples[j + 0] = -samples[j + 0];
+		samples[j + 1] = -samples[j + 1] * hbc;
+		//samples[j + 2] = samples[j + 2];
+		samples[j + 3] = samples[j + 3] * hbc;
+	}
+
+#endif
 
 	fir_interleaved(cnv, samples, len);
 	delay_interleaved(cnv, samples + 1, len);
@@ -328,6 +348,6 @@ static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
 
 void iqconverter_float_process(iqconverter_float_t *cnv, float *samples, int len)
 {
-	apply_bpf(cnv, samples, len);
+	remove_dc(cnv, samples, len);
 	translate_fs_4(cnv, samples, len);
 }

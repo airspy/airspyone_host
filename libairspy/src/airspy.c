@@ -905,6 +905,9 @@ extern "C"
 		int result;
 
 		libusb_clear_halt(device->usb_device, LIBUSB_ENDPOINT_IN | 1);
+
+		iqconverter_float_reset(device->cnv_f);
+		iqconverter_int16_reset(device->cnv_i);
 		
 		result = airspy_set_receiver_mode(device, RECEIVER_MODE_RX);
 		if( result == AIRSPY_SUCCESS )
@@ -1324,6 +1327,8 @@ extern "C"
 
 		iqconverter_float_free(device->cnv_f);
 		device->cnv_f = iqconverter_float_create(kernel, len);
+
+		return AIRSPY_SUCCESS;
 	}
 
 	int ADDCALL airspy_set_conversion_filter_int16(struct airspy_device* device, const int16_t *kernel, const uint32_t len)
@@ -1335,6 +1340,8 @@ extern "C"
 
 		iqconverter_int16_free(device->cnv_i);
 		device->cnv_i = iqconverter_int16_create(kernel, len);
+
+		return AIRSPY_SUCCESS;
 	}
 
 	int ADDCALL airspy_set_lna_gain(airspy_device_t* device, uint8_t value)

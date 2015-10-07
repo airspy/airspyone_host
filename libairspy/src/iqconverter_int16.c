@@ -41,7 +41,7 @@ THE SOFTWARE.
   #define _inline inline
 #endif
 
-#define SIZE_FACTOR 2
+#define SIZE_FACTOR 16
 #define DEFAULT_ALIGNMENT 16
 
 iqconverter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
@@ -50,10 +50,6 @@ iqconverter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
 	size_t buffer_size;
 	iqconverter_int16_t *cnv = (iqconverter_int16_t *) _aligned_malloc(sizeof(iqconverter_int16_t), DEFAULT_ALIGNMENT);
 
-	cnv->old_x = 0;
-	cnv->old_y = 0;
-	cnv->delay_index = 0;
-	cnv->fir_index = 0;
 	cnv->len = len / 2 + 1;
 
 	buffer_size = cnv->len * sizeof(int32_t);
@@ -61,6 +57,8 @@ iqconverter_int16_t *iqconverter_int16_create(const int16_t *hb_kernel, int len)
 	cnv->fir_kernel = (int32_t *) _aligned_malloc(buffer_size, DEFAULT_ALIGNMENT);
 	cnv->fir_queue = (int32_t *) _aligned_malloc(buffer_size * SIZE_FACTOR, DEFAULT_ALIGNMENT);
 	cnv->delay_line = (int16_t *) _aligned_malloc(buffer_size / 4, DEFAULT_ALIGNMENT);
+
+	iqconverter_int16_reset(cnv);
 
 	for (i = 0; i < cnv->len; i++)
 	{
@@ -76,6 +74,17 @@ void iqconverter_int16_free(iqconverter_int16_t *cnv)
 	_aligned_free(cnv->fir_queue);
 	_aligned_free(cnv->delay_line);
 	_aligned_free(cnv);
+}
+
+void iqconverter_int16_reset(iqconverter_int16_t *cnv)
+{
+	cnv->fir_index = 0;
+	cnv->delay_index = 0;
+	cnv->old_x = 0;
+	cnv->old_y = 0;
+	cnv->old_e = 0;
+	memset(cnv->delay_line, 0, cnv->len * sizeof(int16_t) / 4);
+	memset(cnv->fir_queue, 0, cnv->len * sizeof(int16_t) * SIZE_FACTOR);
 }
 
 static void fir_interleaved(iqconverter_int16_t *cnv, int16_t *samples, int len)
