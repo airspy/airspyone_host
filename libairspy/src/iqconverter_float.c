@@ -306,7 +306,7 @@ static void remove_dc(iqconverter_float_t *cnv, float *samples, int len)
 		*samples++ = sample;
 	}
 
-	avg = cnv->avg;
+	cnv->avg = avg;
 }
 
 static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
