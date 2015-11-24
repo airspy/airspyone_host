@@ -1260,7 +1260,7 @@ extern "C"
 			if(length > 0)
 			{
 				memcpy(version, version_local, length-1);
-				version[length] = 0;
+				version[length-1] = 0;
 				return AIRSPY_SUCCESS;
 			}
 			else
