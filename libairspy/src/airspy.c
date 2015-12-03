@@ -1529,6 +1529,14 @@ extern "C"
 			value = 0;
 		}
 
+		rc = airspy_set_mixer_agc(device, 0);
+		if (rc < 0)
+			return rc;
+
+		rc = airspy_set_lna_agc(device, 0);
+		if (rc < 0)
+			return rc;
+
 		rc = airspy_set_vga_gain(device, airspy_linearity_vga_gains[value]);
 		if (rc < 0)
 			return rc;
@@ -1557,6 +1565,14 @@ extern "C"
 		{
 			value = 0;
 		}
+
+		rc = airspy_set_mixer_agc(device, 0);
+		if (rc < 0)
+			return rc;
+
+		rc = airspy_set_lna_agc(device, 0);
+		if (rc < 0)
+			return rc;
 
 		rc = airspy_set_vga_gain(device, airspy_sensitivity_vga_gains[value]);
 		if (rc < 0)
