@@ -106,6 +106,15 @@ static const char str_prefix_serial_airspy[STR_PREFIX_SERIAL_AIRSPY_SIZE] =
 
 #define SERIAL_AIRSPY_EXPECTED_SIZE (26)
 
+#define GAIN_COUNT (22)
+
+uint8_t airspy_linearity_vga_gains[GAIN_COUNT] = { 13, 12, 11, 11, 11, 11, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 8, 7, 6, 5, 4 };
+uint8_t airspy_linearity_mixer_gains[GAIN_COUNT] = { 12, 12, 11, 9, 8, 7, 6, 6, 5, 0, 0, 1, 0, 0, 2, 2, 1, 1, 1, 1, 0, 0 };
+uint8_t airspy_linearity_lna_gains[GAIN_COUNT] = { 14, 14, 14, 13, 12, 10, 9, 9, 8, 9, 8, 6, 5, 3, 1, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t airspy_sensitivity_vga_gains[GAIN_COUNT] = { 13, 12, 11, 10, 9, 8, 7, 6, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4 };
+uint8_t airspy_sensitivity_mixer_gains[GAIN_COUNT] = { 12, 12, 12, 12, 11, 10, 10, 9, 9, 8, 7, 4, 4, 4, 3, 2, 2, 1, 0, 0, 0, 0 };
+uint8_t airspy_sensitivity_lna_gains[GAIN_COUNT] = { 14, 14, 14, 14, 14, 14, 14, 14, 14, 13, 12, 12, 9, 9, 8, 7, 6, 5, 3, 2, 1, 0 };
+
 static int cancel_transfers(airspy_device_t* device)
 {
 	uint32_t transfer_index;
@@ -1504,6 +1513,64 @@ extern "C"
 		} else {
 			return AIRSPY_SUCCESS;
 		}
+	}
+
+	int ADDCALL airspy_set_linearity_gain(struct airspy_device* device, uint8_t value)
+	{
+		int rc;
+		value = GAIN_COUNT - 1 - value;
+
+		if (value >= GAIN_COUNT)
+		{
+			value = GAIN_COUNT - 1;
+		}
+		else if (value < 0)
+		{
+			value = 0;
+		}
+
+		rc = airspy_set_vga_gain(device, airspy_linearity_vga_gains[value]);
+		if (rc < 0)
+			return rc;
+
+		rc = airspy_set_mixer_gain(device, airspy_linearity_mixer_gains[value]);
+		if (rc < 0)
+			return rc;
+
+		rc = airspy_set_lna_gain(device, airspy_linearity_lna_gains[value]);
+		if (rc < 0)
+			return rc;
+
+		return AIRSPY_SUCCESS;
+	}
+
+	int ADDCALL airspy_set_sensitivity_gain(struct airspy_device* device, uint8_t value)
+	{
+		int rc;
+		value = GAIN_COUNT - 1 - value;
+
+		if (value >= GAIN_COUNT)
+		{
+			value = GAIN_COUNT - 1;
+		}
+		else if (value < 0)
+		{
+			value = 0;
+		}
+
+		rc = airspy_set_vga_gain(device, airspy_sensitivity_vga_gains[value]);
+		if (rc < 0)
+			return rc;
+
+		rc = airspy_set_mixer_gain(device, airspy_sensitivity_mixer_gains[value]);
+		if (rc < 0)
+			return rc;
+
+		rc = airspy_set_lna_gain(device, airspy_sensitivity_lna_gains[value]);
+		if (rc < 0)
+			return rc;
+
+		return AIRSPY_SUCCESS;
 	}
 
 	int ADDCALL airspy_set_rf_bias(airspy_device_t* device, uint8_t value)

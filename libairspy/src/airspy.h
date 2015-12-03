@@ -185,6 +185,12 @@ extern ADDAPI int ADDCALL airspy_set_lna_agc(struct airspy_device* device, uint8
 */
 extern ADDAPI int ADDCALL airspy_set_mixer_agc(struct airspy_device* device, uint8_t value);
 
+/* Parameter value: 0..21 */
+extern ADDAPI int ADDCALL airspy_set_linearity_gain(struct airspy_device* device, uint8_t value);
+
+/* Parameter value: 0..21 */
+extern ADDAPI int ADDCALL airspy_set_sensitivity_gain(struct airspy_device* device, uint8_t value);
+
 /* Parameter value shall be 0=Disable BiasT or 1=Enable BiasT */
 extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
 
