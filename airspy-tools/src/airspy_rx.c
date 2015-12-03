@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.2 13 Jul 2015"
+#define AIRSPY_RX_VERSION "1.0.3 3 Dec 2015"
 
 #ifndef bool
 typedef int bool;
@@ -114,6 +114,8 @@ int gettimeofday(struct timeval *tv, void* ignored)
 #define VGA_GAIN_MAX (15)
 #define MIXER_GAIN_MAX (15)
 #define LNA_GAIN_MAX (14)
+#define LINEARITY_GAIN_MAX (21)
+#define SENSITIVITY_GAIN_MAX (21)
 #define SAMPLES_TO_XFER_MAX_U64 (0x8000000000000000ull) /* Max value */
 
 /* WAVE or RIFF WAVE file format containing data for AirSpy compatible with SDR# Wav IQ file */
@@ -186,9 +188,15 @@ typedef struct
 
 receiver_mode_t receiver_mode = RECEIVER_MODE_RX;
 
-unsigned int vga_gain = DEFAULT_VGA_IF_GAIN;
-unsigned int lna_gain = DEFAULT_LNA_GAIN;
-unsigned int mixer_gain = DEFAULT_MIXER_GAIN;
+uint32_t vga_gain = DEFAULT_VGA_IF_GAIN;
+uint32_t lna_gain = DEFAULT_LNA_GAIN;
+uint32_t mixer_gain = DEFAULT_MIXER_GAIN;
+
+uint32_t linearity_gain_val;
+bool linearity_gain = false;
+
+uint32_t sensitivity_gain_val;
+bool sensitivity_gain = false;
 
 /* WAV default values */
 uint16_t wav_format_tag=1; /* PCM8 or PCM16 */
@@ -460,6 +468,8 @@ static void usage(void)
 	printf("[-v vga_gain]: Set VGA/IF gain, 0-%d (default %d)\n", VGA_GAIN_MAX, vga_gain);
 	printf("[-m mixer_gain]: Set Mixer gain, 0-%d (default %d)\n", MIXER_GAIN_MAX, mixer_gain);
 	printf("[-l lna_gain]: Set LNA gain, 0-%d (default %d)\n", LNA_GAIN_MAX, lna_gain);
+	printf("[-g linearity_gain]: Set linearity simplified gain, 0-%d\n", LINEARITY_GAIN_MAX);
+	printf("[-h sensivity_gain]: Set sensitivity simplified gain, 0-%d\n", SENSITIVITY_GAIN_MAX);
 	printf("[-n num_samples]: Number of samples to transfer (default is unlimited)\n");
 	printf("[-d]: Verbose mode\n");
 }
@@ -512,7 +522,7 @@ int main(int argc, char** argv)
 	double freq_hz_temp;
 	char str[20];
 
-	while( (opt = getopt(argc, argv, "r:ws:p:f:a:t:b:v:m:l:n:d")) != EOF )
+	while( (opt = getopt(argc, argv, "r:ws:p:f:a:t:b:v:m:l:g:h:n:d")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
@@ -631,6 +641,16 @@ int main(int argc, char** argv)
 				result = parse_u32(optarg, &lna_gain);
 			break;
 
+			case 'g':
+				linearity_gain = true;
+				result = parse_u32(optarg, &linearity_gain_val);		
+			break;
+
+			case 'h':
+				sensitivity_gain = true;
+				result = parse_u32(optarg, &sensitivity_gain_val);
+			break;
+
 			case 'n':
 				limit_num_samples = true;
 				result = parse_u64(optarg, &samples_to_xfer);
@@ -737,6 +757,25 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
+	if(linearity_gain_val > LINEARITY_GAIN_MAX) {
+		printf("argument error: linearity_gain out of range\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
+	if(sensitivity_gain_val > SENSITIVITY_GAIN_MAX) {
+		printf("argument error: sensitivity_gain out of range\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
+	if( (linearity_gain == true) && (sensitivity_gain == true) )
+	{
+		printf("argument error: linearity_gain and sensitivity_gain are both set (choose only one option)\n");
+		usage();
+		return EXIT_FAILURE;
+	}
+
 	if(verbose == true)
 	{
 		uint32_t serial_number_msb_val;
@@ -751,9 +790,25 @@ int main(int argc, char** argv)
 		printf("frequency_MHz -f %.6fMHz (%sHz)\n",((double)freq_hz/(double)FREQ_ONE_MHZ), u64toa(freq_hz, &ascii_u64_data1) );
 		printf("sample_type -t %d\n", sample_type_val);
 		printf("biast -b %d\n", biast_val);
-		printf("vga_gain -v %u\n", vga_gain);
-		printf("mixer_gain -m %u\n", mixer_gain);
-		printf("lna_gain -l %u\n", lna_gain);
+
+		if( (linearity_gain == false) && (sensitivity_gain == false) )
+		{
+			printf("vga_gain -v %u\n", vga_gain);
+			printf("mixer_gain -m %u\n", mixer_gain);
+			printf("lna_gain -l %u\n", lna_gain);
+		} else
+		{
+			if( linearity_gain == true)
+			{
+				printf("linearity_gain -g %u\n", linearity_gain_val);
+			}
+
+			if( sensitivity_gain == true)
+			{
+				printf("sensitivity_gain -h %u\n", sensitivity_gain_val);
+			}
+		}
+
 		if( limit_num_samples ) {
 			printf("num_samples -n %s (%sM)\n",
 							u64toa(samples_to_xfer, &ascii_u64_data1),
@@ -890,19 +945,39 @@ int main(int argc, char** argv)
 	signal(SIGABRT, &sigint_callback_handler);
 #endif
 
-	result = airspy_set_vga_gain(device, vga_gain);
-	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_set_vga_gain() failed: %s (%d)\n", airspy_error_name(result), result);
-	}
+	if( (linearity_gain == false) && (sensitivity_gain == false) )
+	{
+		result = airspy_set_vga_gain(device, vga_gain);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_set_vga_gain() failed: %s (%d)\n", airspy_error_name(result), result);
+		}
 
-	result = airspy_set_mixer_gain(device, mixer_gain);
-	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_set_mixer_gain() failed: %s (%d)\n", airspy_error_name(result), result);
-	}
+		result = airspy_set_mixer_gain(device, mixer_gain);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_set_mixer_gain() failed: %s (%d)\n", airspy_error_name(result), result);
+		}
 
-	result = airspy_set_lna_gain(device, lna_gain);
-	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_set_lna_gain() failed: %s (%d)\n", airspy_error_name(result), result);
+		result = airspy_set_lna_gain(device, lna_gain);
+		if( result != AIRSPY_SUCCESS ) {
+			printf("airspy_set_lna_gain() failed: %s (%d)\n", airspy_error_name(result), result);
+		}
+	} else
+	{
+		if( linearity_gain == true )
+		{
+			result =  airspy_set_linearity_gain(device, linearity_gain_val);
+			if( result != AIRSPY_SUCCESS ) {
+				printf("airspy_set_linearity_gain() failed: %s (%d)\n", airspy_error_name(result), result);
+			}
+		}
+
+		if( sensitivity_gain == true )
+		{
+			result =  airspy_set_sensitivity_gain(device, sensitivity_gain_val);
+			if( result != AIRSPY_SUCCESS ) {
+				printf("airspy_set_sensitivity_gain() failed: %s (%d)\n", airspy_error_name(result), result);
+			}
+		}
 	}
 
 	result = airspy_start_rx(device, rx_callback, NULL);
