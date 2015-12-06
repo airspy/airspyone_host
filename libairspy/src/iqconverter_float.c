@@ -46,7 +46,7 @@ THE SOFTWARE.
   #define FIR_STANDARD
   //#define FIR_AUTO_VECTOR
 #else
-	#if (_MSC_VER >= 1300)
+	#if (_MSC_VER >= 1800)
 		#define USE_SSE2
 		#include <immintrin.h>
 	#else
