@@ -146,6 +146,7 @@ static int free_transfers(airspy_device_t* device)
 		{
 			if( device->transfers[transfer_index] != NULL )
 			{
+				free(device->transfers[transfer_index]->buffer);
 				libusb_free_transfer(device->transfers[transfer_index]);
 				device->transfers[transfer_index] = NULL;
 			}
@@ -825,7 +826,7 @@ extern "C"
 
 		result = AIRSPY_SUCCESS;
 		
-		if(device != NULL)
+		if (device != NULL)
 		{
 			result = airspy_stop_rx(device);
 
