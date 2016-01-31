@@ -54,7 +54,7 @@ Debug version:
 
 ##How to build the host software on Linux:
 
-###Prerequisites for Linux (Debian/Ubuntu):
+###Prerequisites for Linux (Debian/Ubuntu/Raspbian):
 
 
 `sudo apt-get install build-essential cmake libusb-1.0-0-dev pkg-config`
