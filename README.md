@@ -66,7 +66,7 @@ Debug version:
 
 `unzip host-master`
 
-`cd host-master`
+`cd host-master.zip`
 
 `mkdir build`
 
