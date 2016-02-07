@@ -62,7 +62,11 @@ Debug version:
 
 ###Build host software on Linux:
 
-`cd host`
+`wget https://github.com/airspy/host/archive/master.zip`
+
+`unzip host-master`
+
+`cd host-master`
 
 `mkdir build`
 
@@ -78,7 +82,7 @@ Debug version:
 
 ##Clean CMake temporary files/dirs:
 
-`cd host/build`
+`cd host-master/build`
 
 `rm -rf *`
 
