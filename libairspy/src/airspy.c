@@ -358,9 +358,12 @@ static void* conversion_threadproc(void *arg)
 		{
 			sample_count = ((device->buffer_size / 2) * 4) / 3;
 
-			unpack_samples((uint32_t*)input_samples, device->unpacked_samples, sample_count);
-			
-			input_samples = device->unpacked_samples;
+			if (device->sample_type != AIRSPY_SAMPLE_RAW)
+			{
+				unpack_samples((uint32_t*) input_samples, device->unpacked_samples, sample_count);
+
+				input_samples = device->unpacked_samples;
+			}
 		}
 		else
 		{
@@ -394,6 +397,7 @@ static void* conversion_threadproc(void *arg)
 			break;
 
 		case AIRSPY_SAMPLE_UINT16_REAL:
+		case AIRSPY_SAMPLE_RAW:
 			transfer.samples = input_samples;
 			break;
 
