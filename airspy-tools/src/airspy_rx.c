@@ -91,6 +91,8 @@ int gettimeofday(struct timeval *tv, void* ignored)
 
 #define FLOAT32_EL_SIZE_BYTE (4)	/* 4bytes = 32bit float */
 #define INT16_EL_SIZE_BYTE (2)   /* 2bytes = 16bit int */
+#define INT12_EL_SIZE_BITS (12)
+#define INT8_EL_SIZE_BITS (8)
 
 #define FD_BUFFER_SIZE (16*1024)
 
@@ -392,6 +394,18 @@ int rx_callback(airspy_transfer_t* transfer)
 				pt_rx_buffer = transfer->samples;
 				break;
 
+			case AIRSPY_SAMPLE_RAW:
+				if (packing_val)
+				{
+					bytes_to_write = transfer->sample_count * INT12_EL_SIZE_BITS / INT8_EL_SIZE_BITS;
+				}
+				else
+				{
+					bytes_to_write = transfer->sample_count * INT16_EL_SIZE_BYTE * 1;
+				}
+				pt_rx_buffer = transfer->samples;
+				break;
+
 			default:
 				bytes_to_write = 0;
 				pt_rx_buffer = NULL;
@@ -463,7 +477,7 @@ static void usage(void)
 		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
 	printf("[-a sample_rate]: Set sample rate\n");
 	printf("[-t sample_type]: Set sample type, \n");
-	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_REAL\n");
+	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_REAL, 5=RAW\n");
 	printf("[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
 	printf("[-v vga_gain]: Set VGA/IF gain, 0-%d (default %d)\n", VGA_GAIN_MAX, vga_gain);
 	printf("[-m mixer_gain]: Set Mixer gain, 0-%d (default %d)\n", MIXER_GAIN_MAX, mixer_gain);
@@ -617,6 +631,10 @@ int main(int argc, char** argv)
 						wav_nb_byte_per_sample = (wav_nb_bits_per_sample / 8);
 					break;
 
+					case 5:
+						sample_type_val = AIRSPY_SAMPLE_RAW;
+						break;
+
 					default:
 						/* Invalid value will display error */
 						sample_type_val = SAMPLE_TYPE_MAX+1;
@@ -705,6 +723,13 @@ int main(int argc, char** argv)
 	receiver_mode = RECEIVER_MODE_RX;
 	if( receive_wav ) 
 	{
+		if (sample_type_val == AIRSPY_SAMPLE_RAW)
+		{
+			printf("The RAW sampling mode is not compatible with Wave files\n");
+			usage();
+			return EXIT_FAILURE;
+		}
+
 		time (&rawtime);
 		timeinfo = localtime (&rawtime);
 		receiver_mode = RECEIVER_MODE_RX;
