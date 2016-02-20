@@ -412,7 +412,7 @@ static void* conversion_threadproc(void *arg)
 		transfer.sample_type = device->sample_type;
 
 		pthread_mutex_lock(&device->conversion_mp);
-		transfer.dropped_samples = device->dropped_buffers * sample_count;
+		transfer.dropped_samples = (uint64_t) device->dropped_buffers * (uint64_t) sample_count;
 		device->dropped_buffers = 0;
 		pthread_mutex_unlock(&device->conversion_mp);
 
