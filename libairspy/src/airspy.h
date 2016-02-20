@@ -98,6 +98,7 @@ typedef struct {
 	void* ctx;
 	void* samples;
 	int sample_count;
+	uint64_t dropped_samples;
 	enum airspy_sample_type sample_type;
 } airspy_transfer_t, airspy_transfer;
 

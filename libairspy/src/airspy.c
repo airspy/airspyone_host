@@ -79,7 +79,7 @@ typedef struct airspy_device
 	pthread_mutex_t conversion_mp;
 	uint32_t transfer_count;
 	uint32_t buffer_size;
-	uint32_t total_dropped_samples;	
+	uint32_t dropped_buffers;
 	uint16_t *received_samples_queue[RAW_BUFFER_COUNT];
 	volatile int received_samples_queue_head;
 	volatile int received_samples_queue_tail;
@@ -411,6 +411,11 @@ static void* conversion_threadproc(void *arg)
 		transfer.sample_count = sample_count;
 		transfer.sample_type = device->sample_type;
 
+		pthread_mutex_lock(&device->conversion_mp);
+		transfer.dropped_samples = device->dropped_buffers * sample_count;
+		device->dropped_buffers = 0;
+		pthread_mutex_unlock(&device->conversion_mp);
+
 		if (device->callback(&transfer) != 0)
 		{
 			device->stop_requested = true;
@@ -432,6 +437,8 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 		return;
 	}
 
+	uint8_t buffer_skipped = 1;
+
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
 		if (device->received_samples_queue_head != device->received_samples_queue_tail || device->converter_is_waiting)
@@ -441,6 +448,8 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 			usb_transfer->buffer = (uint8_t *) temp;
 			device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
 
+			buffer_skipped = 0;
+
 			if (device->converter_is_waiting)
 			{
 				pthread_mutex_lock(&device->conversion_mp);
@@ -448,6 +457,13 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 				pthread_mutex_unlock(&device->conversion_mp);
 			}
 		}
+	}
+
+	if (buffer_skipped)
+	{
+		pthread_mutex_lock(&device->conversion_mp);
+		device->dropped_buffers++;
+		pthread_mutex_unlock(&device->conversion_mp);
 	}
 
 	if (libusb_submit_transfer(usb_transfer) != 0)
@@ -940,6 +956,8 @@ extern "C"
 
 		iqconverter_float_reset(device->cnv_f);
 		iqconverter_int16_reset(device->cnv_i);
+
+		device->dropped_buffers = 0;
 		
 		result = airspy_set_receiver_mode(device, RECEIVER_MODE_RX);
 		if( result == AIRSPY_SUCCESS )
