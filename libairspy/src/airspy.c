@@ -356,7 +356,6 @@ static void* consumer_threadproc(void *arg)
 		device->dropped_buffers = 0;
 		input_samples = device->received_samples_queue[device->received_samples_queue_tail];
 		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
-		device->received_buffer_count--;
 
 		pthread_mutex_unlock(&device->consumer_mp);
 		
@@ -422,6 +421,10 @@ static void* consumer_threadproc(void *arg)
 		{
 			device->stop_requested = true;
 		}
+
+		pthread_mutex_lock(&device->consumer_mp);
+		device->received_buffer_count--;
+		pthread_mutex_unlock(&device->consumer_mp);
 	}
 
 	return NULL;
