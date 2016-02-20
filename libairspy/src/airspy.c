@@ -83,6 +83,7 @@ typedef struct airspy_device
 	uint16_t *received_samples_queue[RAW_BUFFER_COUNT];
 	volatile int received_samples_queue_head;
 	volatile int received_samples_queue_tail;
+	volatile int received_buffer_count;
 	volatile bool consumer_is_waiting;
 	void *output_buffer;
 	uint16_t *unpacked_samples;
@@ -337,11 +338,10 @@ static void* consumer_threadproc(void *arg)
 	{
 		pthread_mutex_lock(&device->consumer_mp);
 
-		if (device->received_samples_queue_head == device->received_samples_queue_tail)
+		if (device->received_buffer_count == 0)
 		{
 			device->consumer_is_waiting = true;
-			while (device->received_samples_queue_head == device->received_samples_queue_tail &&
-				!device->stop_requested && device->streaming)
+			while (device->received_buffer_count == 0 && !device->stop_requested && device->streaming)
 			{
 				pthread_cond_wait(&device->consumer_cv, &device->consumer_mp);
 			}
@@ -356,6 +356,7 @@ static void* consumer_threadproc(void *arg)
 		device->dropped_buffers = 0;
 		input_samples = device->received_samples_queue[device->received_samples_queue_tail];
 		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
+		device->received_buffer_count--;
 
 		pthread_mutex_unlock(&device->consumer_mp);
 		
@@ -442,12 +443,13 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 
 	if (usb_transfer->status == LIBUSB_TRANSFER_COMPLETED)
 	{
-		if (device->received_samples_queue_head != device->received_samples_queue_tail || device->consumer_is_waiting)
+		if (device->received_buffer_count < RAW_BUFFER_COUNT)
 		{
 			temp = device->received_samples_queue[device->received_samples_queue_head];
-			device->received_samples_queue[device->received_samples_queue_head] = (uint16_t *) usb_transfer->buffer;
-			usb_transfer->buffer = (uint8_t *) temp;
+			device->received_samples_queue[device->received_samples_queue_head] = (uint16_t *)usb_transfer->buffer;
+			usb_transfer->buffer = (uint8_t *)temp;
 			device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
+			device->received_buffer_count++;
 
 			buffer_skipped = 0;
 
@@ -538,6 +540,7 @@ static int create_io_threads(airspy_device_t* device, airspy_sample_block_cb_fn 
 
 		device->received_samples_queue_head = 0;
 		device->received_samples_queue_tail = 0;
+		device->received_buffer_count = 0;
 		device->consumer_is_waiting = true;
 
 		pthread_attr_init(&attr);
