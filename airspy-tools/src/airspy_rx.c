@@ -633,6 +633,7 @@ int main(int argc, char** argv)
 
 					case 5:
 						sample_type_val = AIRSPY_SAMPLE_RAW;
+						wav_nb_channels = 1;
 						break;
 
 					default:
