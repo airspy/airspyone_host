@@ -633,6 +633,7 @@ int main(int argc, char** argv)
 
 					case 5:
 						sample_type_val = AIRSPY_SAMPLE_RAW;
+						wav_nb_bits_per_sample = 12;
 						wav_nb_channels = 1;
 						break;
 
@@ -697,7 +698,7 @@ int main(int argc, char** argv)
 		sample_rate_val = sample_rate_u32;
 	}
 
-	bytes_to_xfer = samples_to_xfer * wav_nb_byte_per_sample * wav_nb_channels;
+	bytes_to_xfer = samples_to_xfer * wav_nb_bits_per_sample * wav_nb_channels / 8;
 
 	if (samples_to_xfer >= SAMPLES_TO_XFER_MAX_U64) {
 		printf("argument error: num_samples must be less than %s/%sMio\n",
