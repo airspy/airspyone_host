@@ -86,7 +86,6 @@ int main(int argc, char** argv)
 	uint32_t serial_number_msb_val;
 	uint32_t serial_number_lsb_val;
 	airspy_lib_version_t lib_version;
-	uint8_t packing;
 	uint8_t board_id = AIRSPY_BOARD_ID_INVALID;
 
 	while( (opt = getopt(argc, argv, "s:")) != EOF )
