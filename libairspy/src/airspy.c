@@ -342,12 +342,12 @@ static void* consumer_threadproc(void *arg)
 		if (device->received_buffer_count == 0)
 		{
 			device->consumer_is_waiting = true;
-			while (device->received_buffer_count == 0 && !device->stop_requested && device->streaming)
+			while (device->received_buffer_count == 0 && device->streaming && !device->stop_requested)
 			{
 				pthread_cond_wait(&device->consumer_cv, &device->consumer_mp);
 			}
 			device->consumer_is_waiting = false;
-			if (device->streaming && !device->stop_requested)
+			if (!device->streaming || device->stop_requested)
 			{
 				break;
 			}
