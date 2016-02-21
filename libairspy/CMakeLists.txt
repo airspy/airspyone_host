@@ -67,7 +67,6 @@ if(MSVC)
 	set(THREADS_USE_PTHREADS_WIN32 true)
 else()
 	add_definitions(-Wall)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu90")
 
 	INCLUDE(TestBigEndian)
 	TEST_BIG_ENDIAN(BIGENDIAN)
