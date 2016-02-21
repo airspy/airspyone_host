@@ -320,6 +320,7 @@ static inline void unpack_samples(uint32_t *input, uint16_t *output, int length)
 	}
 }
 
+
 static void* consumer_threadproc(void *arg)
 {
 	int sample_count;
@@ -334,10 +335,10 @@ static void* consumer_threadproc(void *arg)
 
 #endif
 
+	pthread_mutex_lock(&device->consumer_mp);
+
 	while (device->streaming && !device->stop_requested)
 	{
-		pthread_mutex_lock(&device->consumer_mp);
-
 		if (device->received_buffer_count == 0)
 		{
 			device->consumer_is_waiting = true;
@@ -346,10 +347,9 @@ static void* consumer_threadproc(void *arg)
 				pthread_cond_wait(&device->consumer_cv, &device->consumer_mp);
 			}
 			device->consumer_is_waiting = false;
-			if (device->stop_requested || !device->streaming)
+			if (device->streaming && !device->stop_requested)
 			{
-				pthread_mutex_unlock(&device->consumer_mp);
-				continue;
+				break;
 			}
 		}
 		dropped_buffers = device->dropped_buffers;
@@ -358,14 +358,14 @@ static void* consumer_threadproc(void *arg)
 		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 
 		pthread_mutex_unlock(&device->consumer_mp);
-		
+
 		if (device->packing_enabled)
 		{
 			sample_count = ((device->buffer_size / 2) * 4) / 3;
 
 			if (device->sample_type != AIRSPY_SAMPLE_RAW)
 			{
-				unpack_samples((uint32_t*) input_samples, device->unpacked_samples, sample_count);
+				unpack_samples((uint32_t*)input_samples, device->unpacked_samples, sample_count);
 
 				input_samples = device->unpacked_samples;
 			}
@@ -415,7 +415,7 @@ static void* consumer_threadproc(void *arg)
 		transfer.ctx = device->ctx;
 		transfer.sample_count = sample_count;
 		transfer.sample_type = device->sample_type;
-		transfer.dropped_samples = (uint64_t) dropped_buffers * (uint64_t) sample_count;
+		transfer.dropped_samples = (uint64_t)dropped_buffers * (uint64_t)sample_count;
 
 		if (device->callback(&transfer) != 0)
 		{
@@ -424,8 +424,9 @@ static void* consumer_threadproc(void *arg)
 
 		pthread_mutex_lock(&device->consumer_mp);
 		device->received_buffer_count--;
-		pthread_mutex_unlock(&device->consumer_mp);
 	}
+
+	pthread_mutex_unlock(&device->consumer_mp);
 
 	return NULL;
 }
