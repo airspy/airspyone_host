@@ -407,7 +407,7 @@ static void* consumer_threadproc(void *arg)
 		transfer.ctx = device->ctx;
 		transfer.sample_count = sample_count;
 		transfer.sample_type = device->sample_type;
-		transfer.dropped_samples = (uint64_t)device->dropped_buffers * (uint64_t)sample_count;
+		transfer.dropped_samples = (uint64_t) device->last_dropped_buffers * (uint64_t)sample_count;
 
 		if (device->callback(&transfer) != 0)
 		{
