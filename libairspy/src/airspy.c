@@ -79,8 +79,8 @@ typedef struct airspy_device
 	pthread_mutex_t consumer_mp;
 	uint32_t transfer_count;
 	uint32_t buffer_size;
-	uint32_t last_dropped_buffers;
-	uint32_t dropped_buffers[RAW_BUFFER_COUNT];
+	uint32_t dropped_buffers;
+	uint32_t dropped_buffers_queue[RAW_BUFFER_COUNT];
 	uint16_t *received_samples_queue[RAW_BUFFER_COUNT];
 	volatile int received_samples_queue_head;
 	volatile int received_samples_queue_tail;
@@ -326,6 +326,7 @@ static void* consumer_threadproc(void *arg)
 {
 	int sample_count;
 	uint16_t* input_samples;
+	uint32_t dropped_buffers;
 	airspy_device_t* device = (airspy_device_t*)arg;
 	airspy_transfer_t transfer;
 
@@ -348,8 +349,9 @@ static void* consumer_threadproc(void *arg)
 			break;
 		}
 
-		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 		input_samples = device->received_samples_queue[device->received_samples_queue_tail];
+		dropped_buffers = device->dropped_buffers_queue[device->received_samples_queue_tail];
+		device->received_samples_queue_tail = (device->received_samples_queue_tail + 1) & (RAW_BUFFER_COUNT - 1);
 
 		pthread_mutex_unlock(&device->consumer_mp);
 
@@ -409,7 +411,7 @@ static void* consumer_threadproc(void *arg)
 		transfer.ctx = device->ctx;
 		transfer.sample_count = sample_count;
 		transfer.sample_type = device->sample_type;
-		transfer.dropped_samples = (uint64_t)device->last_dropped_buffers * (uint64_t)sample_count;
+		transfer.dropped_samples = (uint64_t) dropped_buffers * (uint64_t) sample_count;
 
 		if (device->callback(&transfer) != 0)
 		{
@@ -417,10 +419,7 @@ static void* consumer_threadproc(void *arg)
 		}
 
 		pthread_mutex_lock(&device->consumer_mp);
-
 		device->received_buffer_count--;
-		device->last_dropped_buffers = device->dropped_buffers[device->received_samples_queue_tail];
-		device->dropped_buffers[device->received_samples_queue_tail] = 0;
 	}
 
 	pthread_mutex_unlock(&device->consumer_mp);
@@ -446,17 +445,21 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 
 		if (device->received_buffer_count < RAW_BUFFER_COUNT)
 		{
-			device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
 			temp = device->received_samples_queue[device->received_samples_queue_head];
 			device->received_samples_queue[device->received_samples_queue_head] = (uint16_t *)usb_transfer->buffer;
 			usb_transfer->buffer = (uint8_t *)temp;
+
+			device->dropped_buffers_queue[device->received_samples_queue_head] = device->dropped_buffers;
+			device->dropped_buffers = 0;
+			
+			device->received_samples_queue_head = (device->received_samples_queue_head + 1) & (RAW_BUFFER_COUNT - 1);
 			device->received_buffer_count++;
 
 			pthread_cond_signal(&device->consumer_cv);
 		}
 		else
 		{
-			device->dropped_buffers[device->received_samples_queue_head]++;
+			device->dropped_buffers++;
 		}
 
 		pthread_mutex_unlock(&device->consumer_mp);
@@ -966,8 +969,8 @@ extern "C"
 		iqconverter_float_reset(device->cnv_f);
 		iqconverter_int16_reset(device->cnv_i);
 
-		memset(device->dropped_buffers, 0, RAW_BUFFER_COUNT * sizeof(uint32_t));
-		device->last_dropped_buffers = 0;
+		memset(device->dropped_buffers_queue, 0, RAW_BUFFER_COUNT * sizeof(uint32_t));
+		device->dropped_buffers = 0;
 
 		result = airspy_set_receiver_mode(device, RECEIVER_MODE_RX);
 		if (result == AIRSPY_SUCCESS)
