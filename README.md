@@ -64,7 +64,7 @@ Debug version:
 
 `wget https://github.com/airspy/host/archive/master.zip`
 
-`unzip host-master.zip`
+`unzip master.zip`
 
 `cd host-master`
 
