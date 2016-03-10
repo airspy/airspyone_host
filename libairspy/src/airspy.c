@@ -964,13 +964,19 @@ extern "C"
 	{
 		int result;
 
-		libusb_clear_halt(device->usb_device, LIBUSB_ENDPOINT_IN | 1);
-
 		iqconverter_float_reset(device->cnv_f);
 		iqconverter_int16_reset(device->cnv_i);
 
 		memset(device->dropped_buffers_queue, 0, RAW_BUFFER_COUNT * sizeof(uint32_t));
 		device->dropped_buffers = 0;
+
+		result = airspy_set_receiver_mode(device, RECEIVER_MODE_OFF);
+		if (result != AIRSPY_SUCCESS)
+		{
+			return result;
+		}
+
+		libusb_clear_halt(device->usb_device, LIBUSB_ENDPOINT_IN | 1);
 
 		result = airspy_set_receiver_mode(device, RECEIVER_MODE_RX);
 		if (result == AIRSPY_SUCCESS)
@@ -978,6 +984,7 @@ extern "C"
 			device->ctx = ctx;
 			result = create_io_threads(device, callback);
 		}
+
 		return result;
 	}
 
