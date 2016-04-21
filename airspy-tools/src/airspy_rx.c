@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.3 3 Dec 2015"
+#define AIRSPY_RX_VERSION "1.0.4 21 April 2016"
 
 #ifndef bool
 typedef int bool;
@@ -869,7 +869,7 @@ int main(int argc, char** argv)
 
 	airspy_get_samplerates(device, &count, 0);
 
-	if (sample_rate_val < 0 || sample_rate_val >= count)
+	if (sample_rate_val < 0)
 	{
 		printf("argument error: sample rate out of range\n");
 		airspy_close(device);
@@ -879,7 +879,14 @@ int main(int argc, char** argv)
 
 	supported_samplerates = (uint32_t *) malloc(count * sizeof(uint32_t));
 	airspy_get_samplerates(device, supported_samplerates, count);
-	wav_sample_per_sec = supported_samplerates[sample_rate_val];
+
+	if(sample_rate_val < count)
+	{
+		wav_sample_per_sec = supported_samplerates[sample_rate_val];
+	}else
+	{
+		wav_sample_per_sec = sample_rate_val * (1000 / 2);
+	}
 	free(supported_samplerates);
 
 	if (wav_nb_channels == 1)
