@@ -61,6 +61,9 @@ typedef int bool;
 #define USB_PRODUCT_ID (2)
 #define STR_DESCRIPTOR_SIZE (250)
 
+#define MIN_SAMPLERATE_BY_VALUE (1000000)
+#define SAMPLE_TYPE_IS_IQ(x) ((x) == AIRSPY_SAMPLE_FLOAT32_IQ || (x) == AIRSPY_SAMPLE_INT16_IQ)
+
 typedef struct {
 	uint32_t freq_hz;
 } set_freq_params_t;
@@ -77,6 +80,8 @@ typedef struct airspy_device
 	pthread_t consumer_thread;
 	pthread_cond_t consumer_cv;
 	pthread_mutex_t consumer_mp;
+	uint32_t supported_samplerate_count;
+	uint32_t *supported_samplerates;
 	uint32_t transfer_count;
 	uint32_t buffer_size;
 	uint32_t dropped_buffers;
@@ -747,6 +752,28 @@ static void airspy_open_device(airspy_device_t* device,
 	return;
 }
 
+static int airspy_read_samplerates_from_fw(struct airspy_device* device, uint32_t* buffer, const uint32_t len)
+{
+	int result;
+
+	result = libusb_control_transfer(
+		device->usb_device,
+		LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+		AIRSPY_GET_SAMPLERATES,
+		0,
+		len,
+		(unsigned char*)buffer,
+		(len > 0 ? len : 1) * sizeof(uint32_t),
+		0);
+
+	if (result < 1)
+	{
+		return AIRSPY_ERROR_OTHER;
+	}
+
+	return AIRSPY_SUCCESS;
+}
+
 static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 {
 	airspy_device_t* lib_device;
@@ -789,12 +816,32 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 	lib_device->stop_requested = false;
 	lib_device->sample_type = AIRSPY_SAMPLE_FLOAT32_IQ;
 
+	result = airspy_read_samplerates_from_fw(lib_device, &lib_device->supported_samplerate_count, 0);
+	if (result == AIRSPY_SUCCESS)
+	{
+		lib_device->supported_samplerates = (uint32_t *) malloc(lib_device->supported_samplerate_count * sizeof(uint32_t));
+		result = airspy_read_samplerates_from_fw(lib_device, lib_device->supported_samplerates, lib_device->supported_samplerate_count);
+		if (result != AIRSPY_SUCCESS)
+		{
+			free(lib_device->supported_samplerates);
+		}
+	}
+
+	if (result != AIRSPY_SUCCESS)
+	{
+		lib_device->supported_samplerate_count = 2;
+		lib_device->supported_samplerates = (uint32_t *) malloc(lib_device->supported_samplerate_count * sizeof(uint32_t));
+		lib_device->supported_samplerates[0] = 10000000;
+		lib_device->supported_samplerates[1] = 2500000;
+	}
+
 	airspy_set_packing(lib_device, 0);
 
 	result = allocate_transfers(lib_device);
 	if (result != 0)
 	{
 		airspy_open_exit(lib_device);
+		free(lib_device->supported_samplerates);
 		free(lib_device);
 		return AIRSPY_ERROR_NO_MEM;
 	}
@@ -868,6 +915,7 @@ extern "C"
 
 			airspy_open_exit(device);
 			free_transfers(device);
+			free(device->supported_samplerates);
 			free(device);
 		}
 
@@ -876,34 +924,27 @@ extern "C"
 
 	int ADDCALL airspy_get_samplerates(struct airspy_device* device, uint32_t* buffer, const uint32_t len)
 	{
-		int result;
-
-		result = libusb_control_transfer(
-			device->usb_device,
-			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-			AIRSPY_GET_SAMPLERATES,
-			0,
-			len,
-			(unsigned char*)buffer,
-			(len > 0 ? len : 1) * sizeof(uint32_t),
-			0);
-
-		if (result < 1)
+		if (len == 0)
 		{
-			if (len == 0)
+			*buffer = device->supported_samplerate_count;
+		}
+		else if (len <= device->supported_samplerate_count)
+		{
+			memcpy(buffer, device->supported_samplerates, len * sizeof(uint32_t));
+
+			if (!SAMPLE_TYPE_IS_IQ(device->sample_type))
 			{
-				*buffer = 2;
-			}
-			else if (len >= 2)
-			{
-				buffer[0] = 10000000;
-				buffer[1] = 2500000;
-			}
-			else
-			{
-				return AIRSPY_ERROR_INVALID_PARAM;
+				for (int i = 0; i < len; i++)
+				{
+					buffer[i] *= 2;
+				}
 			}
 		}
+		else
+		{
+			return AIRSPY_ERROR_INVALID_PARAM;
+		}
+
 		return AIRSPY_SUCCESS;
 	}
 
@@ -912,6 +953,27 @@ extern "C"
 		int result;
 		uint8_t retval;
 		uint8_t length;
+
+		if (samplerate >= MIN_SAMPLERATE_BY_VALUE)
+		{
+			for (size_t i = 0; i < device->supported_samplerate_count; i++)
+			{
+				if (samplerate == device->supported_samplerates[i])
+				{
+					samplerate = i;
+					break;
+				}
+			}
+
+			if (samplerate >= MIN_SAMPLERATE_BY_VALUE)
+			{
+				if (SAMPLE_TYPE_IS_IQ(device->sample_type))
+				{
+					samplerate *= 2;
+				}
+				samplerate /= 1000;
+			}
+		}
 
 		libusb_clear_halt(device->usb_device, LIBUSB_ENDPOINT_IN | 1);
 
