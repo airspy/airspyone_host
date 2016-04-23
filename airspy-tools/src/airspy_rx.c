@@ -120,6 +120,8 @@ int gettimeofday(struct timeval *tv, void* ignored)
 #define SENSITIVITY_GAIN_MAX (21)
 #define SAMPLES_TO_XFER_MAX_U64 (0x8000000000000000ull) /* Max value */
 
+#define MIN_SAMPLERATE_BY_VALUE (1000000)
+
 /* WAVE or RIFF WAVE file format containing data for AirSpy compatible with SDR# Wav IQ file */
 typedef struct 
 {
@@ -877,25 +879,38 @@ int main(int argc, char** argv)
 
 	airspy_get_samplerates(device, &count, 0);
 
-	if (sample_rate_val < 0)
+	supported_samplerates = (uint32_t *) malloc(count * sizeof(uint32_t));
+	airspy_get_samplerates(device, supported_samplerates, count);
+
+	if (sample_rate_val <= MIN_SAMPLERATE_BY_VALUE)
 	{
-		printf("argument error: sample rate out of range\n");
+		if (sample_rate_val < count)
+		{
+			wav_sample_per_sec = supported_samplerates[sample_rate_val];
+		}
+		else
+		{
+			free(supported_samplerates);
+			printf("argument error: unsupported sample rate\n");
+			airspy_close(device);
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+	}
+	else
+	{
+		wav_sample_per_sec = sample_rate_val;
+	}
+
+	free(supported_samplerates);
+
+	result = airspy_set_samplerate(device, sample_rate_val);
+	if (result != AIRSPY_SUCCESS) {
+		printf("airspy_set_samplerate() failed: %s (%d)\n", airspy_error_name(result), result);
 		airspy_close(device);
 		airspy_exit();
 		return EXIT_FAILURE;
 	}
-
-	supported_samplerates = (uint32_t *) malloc(count * sizeof(uint32_t));
-	airspy_get_samplerates(device, supported_samplerates, count);
-
-	if(sample_rate_val < count)
-	{
-		wav_sample_per_sec = supported_samplerates[sample_rate_val];
-	}else
-	{
-		wav_sample_per_sec = sample_rate_val * (1000 / 2);
-	}
-	free(supported_samplerates);
 
 	if (verbose)
 	{
@@ -923,14 +938,6 @@ int main(int argc, char** argv)
 			airspy_exit();
 			return EXIT_FAILURE;
 		}
-	}
-
-	result = airspy_set_samplerate(device, sample_rate_val);
-	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_set_samplerate() failed: %s (%d)\n", airspy_error_name(result), result);
-		airspy_close(device);
-		airspy_exit();
-		return EXIT_FAILURE;
 	}
 
 	result = airspy_set_rf_bias(device, biast_val);
