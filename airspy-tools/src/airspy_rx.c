@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#define AIRSPY_RX_VERSION "1.0.4 23 April 2016"
+#define AIRSPY_RX_VERSION "1.0.5 23 April 2016"
 
 #ifndef bool
 typedef int bool;
@@ -1042,7 +1042,7 @@ int main(int argc, char** argv)
 		(do_exit == false) )
 	{
 		float average_rate_now = average_rate * 1e-6f;
-		sprintf(str, "%2.2f", average_rate_now);
+		sprintf(str, "%2.3f", average_rate_now);
 		average_rate_now = 9.5f;
 		printf("Streaming at %5s MSPS\n", str);
 		if ((limit_num_samples == true) && (bytes_to_xfer == 0))
