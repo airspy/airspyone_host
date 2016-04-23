@@ -924,6 +924,8 @@ extern "C"
 
 	int ADDCALL airspy_get_samplerates(struct airspy_device* device, uint32_t* buffer, const uint32_t len)
 	{
+		uint32_t i;
+
 		if (len == 0)
 		{
 			*buffer = device->supported_samplerate_count;
@@ -934,7 +936,7 @@ extern "C"
 
 			if (!SAMPLE_TYPE_IS_IQ(device->sample_type))
 			{
-				for (int i = 0; i < len; i++)
+				for (i = 0; i < len; i++)
 				{
 					buffer[i] *= 2;
 				}
@@ -953,10 +955,11 @@ extern "C"
 		int result;
 		uint8_t retval;
 		uint8_t length;
+		uint32_t i;
 
 		if (samplerate >= MIN_SAMPLERATE_BY_VALUE)
 		{
-			for (size_t i = 0; i < device->supported_samplerate_count; i++)
+			for (i = 0; i < device->supported_samplerate_count; i++)
 			{
 				if (samplerate == device->supported_samplerates[i])
 				{
