@@ -867,6 +867,14 @@ int main(int argc, char** argv)
 		}
 	}
 
+	result = airspy_set_sample_type(device, sample_type_val);
+	if (result != AIRSPY_SUCCESS) {
+		printf("airspy_set_sample_type() failed: %s (%d)\n", airspy_error_name(result), result);
+		airspy_close(device);
+		airspy_exit();
+		return EXIT_FAILURE;
+	}
+
 	airspy_get_samplerates(device, &count, 0);
 
 	if (sample_rate_val < 0)
@@ -888,11 +896,6 @@ int main(int argc, char** argv)
 		wav_sample_per_sec = sample_rate_val * (1000 / 2);
 	}
 	free(supported_samplerates);
-
-	if (wav_nb_channels == 1)
-	{
-		wav_sample_per_sec *= 2;
-	}
 
 	if (verbose)
 	{
@@ -925,14 +928,6 @@ int main(int argc, char** argv)
 	result = airspy_set_samplerate(device, sample_rate_val);
 	if( result != AIRSPY_SUCCESS ) {
 		printf("airspy_set_samplerate() failed: %s (%d)\n", airspy_error_name(result), result);
-		airspy_close(device);
-		airspy_exit();
-		return EXIT_FAILURE;
-	}
-
-	result = airspy_set_sample_type(device, sample_type_val);
-	if( result != AIRSPY_SUCCESS ) {
-		printf("airspy_set_sample_type() failed: %s (%d)\n", airspy_error_name(result), result);
 		airspy_close(device);
 		airspy_exit();
 		return EXIT_FAILURE;
