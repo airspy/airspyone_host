@@ -1115,7 +1115,7 @@ extern "C"
 		}
 	}
 
-	int ADDCALL airspy_config_write(struct airspy_device* device, uint16_t page_index, airspy_config_page_t *page)
+	int ADDCALL airspy_config_write(struct airspy_device* device, const uint8_t page_index, const uint16_t length, unsigned char *data)
 	{
 		int result;
 
@@ -1125,8 +1125,8 @@ extern "C"
 			AIRSPY_FLASH_CONFIG_WRITE,
 			page_index,
 			0,
-			(unsigned char *) page,
-			sizeof(airspy_config_page_t),
+			(unsigned char *) data,
+			length,
 			0);
 
 		if (result != 0)
@@ -1138,7 +1138,7 @@ extern "C"
 		}
 	}
 
-	int ADDCALL airspy_config_read(struct airspy_device* device, uint16_t page_index, airspy_config_page_t *page)
+	int ADDCALL airspy_config_read(struct airspy_device* device, const uint8_t page_index, const uint16_t length, unsigned char *data)
 	{
 		int result;
 
@@ -1148,8 +1148,8 @@ extern "C"
 			AIRSPY_FLASH_CONFIG_READ,
 			page_index,
 			0,
-			(unsigned char *) page,
-			sizeof(airspy_config_page_t),
+			data,
+			length,
 			0);
 
 		if (result != 0)

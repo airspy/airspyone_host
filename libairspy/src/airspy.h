@@ -91,7 +91,7 @@ enum airspy_sample_type
 	AIRSPY_SAMPLE_END = 6           /* Number of supported sample types */
 };
 
-#define CONFIG_PAGE_SIZE (512)
+#define MAX_CONFIG_PAGE_SIZE (0x10000)
 
 struct airspy_device;
 
@@ -114,12 +114,6 @@ typedef struct {
 	uint32_t minor_version;
 	uint32_t revision;
 } airspy_lib_version_t;
-
-typedef struct {
-	uint32_t header;
-	uint64_t timestamp;
-	uint8_t data[CONFIG_PAGE_SIZE - sizeof(uint32_t) - sizeof(uint64_t)];
-} airspy_config_page_t;
 
 typedef int (*airspy_sample_block_cb_fn)(airspy_transfer* transfer);
 
@@ -150,8 +144,8 @@ extern ADDAPI int ADDCALL airspy_is_streaming(struct airspy_device* device);
 extern ADDAPI int ADDCALL airspy_si5351c_write(struct airspy_device* device, uint8_t register_number, uint8_t value);
 extern ADDAPI int ADDCALL airspy_si5351c_read(struct airspy_device* device, uint8_t register_number, uint8_t* value);
 
-extern ADDAPI int ADDCALL airspy_config_write(struct airspy_device* device, uint16_t page_index, airspy_config_page_t*);
-extern ADDAPI int ADDCALL airspy_config_read(struct airspy_device* device, uint16_t page_index, airspy_config_page_t*);
+extern ADDAPI int ADDCALL airspy_config_write(struct airspy_device* device, const uint8_t page_index, const uint16_t length, unsigned char *data);
+extern ADDAPI int ADDCALL airspy_config_read(struct airspy_device* device, const uint8_t page_index, const uint16_t length, unsigned char *data);
 
 extern ADDAPI int ADDCALL airspy_r820t_write(struct airspy_device* device, uint8_t register_number, uint8_t value);
 extern ADDAPI int ADDCALL airspy_r820t_read(struct airspy_device* device, uint8_t register_number, uint8_t* value);
