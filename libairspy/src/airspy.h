@@ -209,6 +209,9 @@ extern ADDAPI int ADDCALL airspy_set_packing(struct airspy_device* device, uint8
 extern ADDAPI const char* ADDCALL airspy_error_name(enum airspy_error errcode);
 extern ADDAPI const char* ADDCALL airspy_board_id_name(enum airspy_board_id board_id);
 
+/* Parameter sector_num shall be between 2 & 13 (sector 0 & 1 are reserved) */
+extern ADDAPI int ADDCALL airspy_spiflash_erase_sector(struct airspy_device* device, const uint16_t sector_num);
+
 #ifdef __cplusplus
 } // __cplusplus defined.
 #endif

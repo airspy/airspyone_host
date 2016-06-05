@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2013/2014, Benjamin Vernoux <bvernoux@gmail.com>
+Copyright (c) 2013-2016, Benjamin Vernoux <bvernoux@airspy.com>
 
 All rights reserved.
 
@@ -51,7 +51,7 @@ typedef enum
 #define AIRSPY_CONF_CMD_SHIFT_BIT (3) // Up to 3bits=8 samplerates (airspy_samplerate_t enum shall not exceed 7)
 
 // Commands (usb vendor request) shared between Firmware and Host.
-#define AIRSPY_CMD_MAX (28)
+#define AIRSPY_CMD_MAX (27)
 typedef enum
 {
     AIRSPY_INVALID                    = 0 ,
@@ -81,8 +81,7 @@ typedef enum
     AIRSPY_GPIODIR_READ               = 24,
     AIRSPY_GET_SAMPLERATES            = 25,
     AIRSPY_SET_PACKING                = 26,
-    AIRSPY_FLASH_CONFIG_WRITE         = 27,
-    AIRSPY_FLASH_CONFIG_READ          = AIRSPY_CMD_MAX
+    AIRSPY_SPIFLASH_ERASE_SECTOR      = AIRSPY_CMD_MAX
 } airspy_vendor_request;
 
 typedef enum

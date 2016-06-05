@@ -1115,52 +1115,6 @@ extern "C"
 		}
 	}
 
-	int ADDCALL airspy_config_write(struct airspy_device* device, const uint8_t page_index, const uint16_t length, unsigned char *data)
-	{
-		int result;
-
-		result = libusb_control_transfer(
-			device->usb_device,
-			LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-			AIRSPY_FLASH_CONFIG_WRITE,
-			page_index,
-			0,
-			(unsigned char *) data,
-			length,
-			0);
-
-		if (result != 0)
-		{
-			return AIRSPY_ERROR_LIBUSB;
-		}
-		else {
-			return AIRSPY_SUCCESS;
-		}
-	}
-
-	int ADDCALL airspy_config_read(struct airspy_device* device, const uint8_t page_index, const uint16_t length, unsigned char *data)
-	{
-		int result;
-
-		result = libusb_control_transfer(
-			device->usb_device,
-			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-			AIRSPY_FLASH_CONFIG_READ,
-			page_index,
-			0,
-			data,
-			length,
-			0);
-
-		if (result != 0)
-		{
-			return AIRSPY_ERROR_LIBUSB;
-		}
-		else {
-			return AIRSPY_SUCCESS;
-		}
-	}
-
 	int ADDCALL airspy_r820t_read(airspy_device_t* device, uint8_t register_number, uint8_t* value)
 	{
 		int result;
@@ -1324,6 +1278,28 @@ extern "C"
 			LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 			AIRSPY_SPIFLASH_ERASE,
 			0,
+			0,
+			NULL,
+			0,
+			0);
+
+		if (result != 0)
+		{
+			return AIRSPY_ERROR_LIBUSB;
+		}
+		else {
+			return AIRSPY_SUCCESS;
+		}
+	}
+
+	int ADDCALL airspy_spiflash_erase_sector(airspy_device_t* device, const uint16_t sector_num)
+	{
+		int result;
+		result = libusb_control_transfer(
+			device->usb_device,
+			LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+			AIRSPY_SPIFLASH_ERASE_SECTOR,
+			sector_num,
 			0,
 			NULL,
 			0,
