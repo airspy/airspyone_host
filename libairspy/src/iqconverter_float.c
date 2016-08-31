@@ -201,11 +201,20 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 	float *queue;
 	ALIGNED float acc;
 
-#if defined(USE_SSE2) | defined(FIR_STANDARD)
+#if defined(USE_SSE2)
 
 	float *ptr1;
 	float *ptr2;
 	float *ptr3;
+
+#endif
+
+#if  defined(FIR_STANDARD)
+
+	float *kernel_it;
+	float *queue_it;
+	int left;
+
 
 #endif
 
@@ -239,41 +248,70 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 
 #ifdef FIR_STANDARD
 
-		ptr1 = fir_kernel;
-		ptr2 = queue;
-		ptr3 = queue + fir_len - 1;
-		it = fir_len / 2;
-		acc = 0;
-		
-		if (it >= 4)
-		{
-			do
-			{
-				acc += ptr1[0] * (ptr2[0] + ptr3[0])
-					+ ptr1[1] * (ptr2[1] + ptr3[-1])
-					+ ptr1[2] * (ptr2[2] + ptr3[-2])
-					+ ptr1[3] * (ptr2[3] + ptr3[-3]);
+		kernel_it = fir_kernel;
+		queue_it = queue;
+		left = fir_len;
 
-				ptr1 += 4;
-				ptr2 += 4;
-				ptr3 -= 4;
-			} while ((it -= 4) >= 4);
+		acc = 0.0f;
+
+		if (left >= 8)
+		{
+			int iterations = left >> 3;
+
+			for (int i = 0; i < iterations; i++)
+			{
+				acc += kernel_it[0] * queue_it[0]
+					+  kernel_it[1] * queue_it[1]
+					+  kernel_it[2] * queue_it[2]
+					+  kernel_it[3] * queue_it[3]
+					+  kernel_it[4] * queue_it[4]
+					+  kernel_it[5] * queue_it[5]
+					+  kernel_it[6] * queue_it[6]
+					+  kernel_it[7] * queue_it[7];
+
+				kernel_it += 8;
+				queue_it += 8;
+			}
+
+			left &= 7;
 		}
 
-		while (it-- > 0)
+		if (left >= 4)
 		{
-			acc += *ptr1++ * (*ptr2++ + *ptr3--);
+			acc += kernel_it[0] * queue_it[0]
+				+  kernel_it[1] * queue_it[1]
+				+  kernel_it[2] * queue_it[2]
+				+  kernel_it[3] * queue_it[3];
+
+			kernel_it += 4;
+			queue_it += 4;
+			left &= 3;
+		}
+
+		if (left >= 2)
+		{
+			acc += kernel_it[0] * queue_it[0]
+				+  kernel_it[1] * queue_it[1];
+
+			kernel_it += 2;
+			queue_it += 2;
+			left &= 1;
+		}
+		
+		if (left >= 1)
+		{
+			acc += kernel_it[0] * queue_it[0];
 		}
 
 #endif
+
+		samples[i] = acc;
 
 		if (--fir_index < 0)
 		{
 			fir_index = fir_len * (SIZE_FACTOR - 1);
 			memcpy(fir_queue + fir_index + 1, fir_queue, (fir_len - 1) * sizeof(float));
 		}
-
-		samples[i] = acc;
 	}
 
 	cnv->fir_index = fir_index;

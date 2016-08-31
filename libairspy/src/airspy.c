@@ -295,18 +295,24 @@ static int prepare_transfers(airspy_device_t* device, const uint_fast8_t endpoin
 static void convert_samples_int16(uint16_t *src, int16_t *dest, int count)
 {
 	int i;
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i += 4)
 	{
-		dest[i] = ((src[i] & 0xFFF) - 2048) << SAMPLE_SHIFT;
+		dest[i + 0] = (src[i + 0] - 2048) << SAMPLE_SHIFT;
+		dest[i + 1] = (src[i + 1] - 2048) << SAMPLE_SHIFT;
+		dest[i + 2] = (src[i + 2] - 2048) << SAMPLE_SHIFT;
+		dest[i + 3] = (src[i + 3] - 2048) << SAMPLE_SHIFT;
 	}
 }
 
 static void convert_samples_float(uint16_t *src, float *dest, int count)
 {
 	int i;
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i += 4)
 	{
-		dest[i] = ((src[i] & 0xFFF) - 2048) * SAMPLE_SCALE;
+		dest[i + 0] = (src[i + 0] - 2048) * SAMPLE_SCALE;
+		dest[i + 1] = (src[i + 1] - 2048) * SAMPLE_SCALE;
+		dest[i + 2] = (src[i + 2] - 2048) * SAMPLE_SCALE;
+		dest[i + 3] = (src[i + 3] - 2048) * SAMPLE_SCALE;
 	}
 }
 
