@@ -43,15 +43,10 @@ THE SOFTWARE.
   #define _aligned_malloc(size, alignment) memalign(alignment, size)
   #define _aligned_free(mem) free(mem)
   #define _inline inline
-  #define FIR_STANDARD
-  //#define FIR_AUTO_VECTOR
 #else
 	#if (_MSC_VER >= 1800)
 		//#define USE_SSE2
 		//#include <immintrin.h>
-		#define FIR_STANDARD
-	#else
-		#define FIR_AUTO_VECTOR
 	#endif
 #endif
 
@@ -68,31 +63,11 @@ THE SOFTWARE.
 iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 {
 	int i, j;
-
-#ifdef USE_SSE2
-
-	int original_length;
-	int padding;
-
-#endif
 	size_t buffer_size;
 	iqconverter_float_t *cnv = (iqconverter_float_t *) _aligned_malloc(sizeof(iqconverter_float_t), DEFAULT_ALIGNMENT);
 
 	cnv->len = len / 2 + 1;
 	cnv->hbc = hb_kernel[len / 2];
-
-#ifdef USE_SSE2
-
-	original_length = cnv->len;
-	padding = 0;
-
-	while (cnv->len % 8 != 0)
-	{
-		cnv->len++;
-		padding++;
-	}
-
-#endif
 
 	buffer_size = cnv->len * sizeof(float);
 
@@ -102,27 +77,10 @@ iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 
 	iqconverter_float_reset(cnv);
 
-#ifdef USE_SSE2
-
-	for (i = 0; i < padding / 2; i++)
-	{
-		cnv->fir_kernel[cnv->len - i - 1] = 0;
-		cnv->fir_kernel[i] = 0;
-	}
-
-	for (i = 0, j = 0; i < original_length; i++, j += 2)
-	{
-		cnv->fir_kernel[i + padding / 2] = hb_kernel[j];
-	}
-
-#else
-
 	for (i = 0, j = 0; i < cnv->len; i++, j += 2)
 	{
 		cnv->fir_kernel[i] = hb_kernel[j];
 	}
-
-#endif
 
 	return cnv;
 }
@@ -144,79 +102,122 @@ void iqconverter_float_reset(iqconverter_float_t *cnv)
 	memset(cnv->fir_queue, 0, cnv->len * sizeof(float) * SIZE_FACTOR);
 }
 
-#ifdef USE_SSE2 /* VC only */
-
-_inline float process_folded_fir_sse2(const float *fir_kernel, const float *queue_head, const float *queue_tail, int len)
+_inline float process_fir_tap(const float *kernel, const float *queue, int len)
 {
-	ALIGNED __m128 acc = _mm_set_ps(0, 0, 0, 0);
 
-	queue_tail -= 3;
+#ifdef USE_SSE2
 
-	do
-	{
-		ALIGNED __m128 head = _mm_loadu_ps(queue_head);
-		ALIGNED __m128 tail = _mm_loadu_ps(queue_tail);
-		ALIGNED __m128 kern = _mm_load_ps(fir_kernel);
+	__m128 acc = _mm_set_ps(0, 0, 0, 0);
 
-		tail = _mm_shuffle_ps(tail, tail, 0x1b);  // swap the order
-		ALIGNED __m128 t1 = _mm_add_ps(tail, head);       // add the head
-		t1 = _mm_mul_ps(t1, kern);                // mul
-		acc = _mm_add_ps(acc, t1);                // add
+#else
 
-		queue_head += 4;
-		queue_tail -= 4;
-		fir_kernel += 4;
-
-	} while (queue_head < queue_tail);
-
-	// horizontal sum
-	ALIGNED __m128 t = _mm_add_ps(acc, _mm_movehl_ps(acc, acc));
-	ALIGNED __m128 sum = _mm_add_ss(t, _mm_shuffle_ps(t, t, 1));
-
-	return sum.m128_f32[0];
-}
+	float sum = 0.0f;
 
 #endif
+
+	if (len >= 8)
+	{
+		int it = len >> 3;
+
+#ifdef USE_SSE2
+
+		for (int i = 0; i < it; i++)
+		{
+			__m128 head1 = _mm_loadu_ps(queue);
+			__m128 kern1 = _mm_load_ps(kernel);
+			__m128 head2 = _mm_loadu_ps(queue + 4);
+			__m128 kern2 = _mm_load_ps(kernel + 4);
+
+			__m128 mul1 = _mm_mul_ps(kern1, head1);
+			__m128 mul2 = _mm_mul_ps(kern2, head2);
+
+			mul1 = _mm_add_ps(mul1, mul2);
+
+			acc = _mm_add_ps(acc, mul1);
+
+			queue += 8;
+			kernel += 8;
+		}
+
+#else
+
+		for (int i = 0; i < it; i++)
+		{
+			sum += kernel[0] * queue[0]
+				+ kernel[1] * queue[1]
+				+ kernel[2] * queue[2]
+				+ kernel[3] * queue[3]
+				+ kernel[4] * queue[4]
+				+ kernel[5] * queue[5]
+				+ kernel[6] * queue[6]
+				+ kernel[7] * queue[7];
+
+			queue += 8;
+			kernel += 8;
+		}
+
+#endif
+		len &= 7;
+	}
+
+	if (len >= 4)
+	{
+
+#ifdef USE_SSE2
+
+		__m128 head = _mm_loadu_ps(queue);
+		__m128 kern = _mm_load_ps(kernel);
+		__m128 mul = _mm_mul_ps(kern, head);
+		acc = _mm_add_ps(acc, mul);
+
+#else
+
+		sum += kernel[0] * queue[0]
+			+ kernel[1] * queue[1]
+			+ kernel[2] * queue[2]
+			+ kernel[3] * queue[3];
+
+#endif
+
+		kernel += 4;
+		queue += 4;
+		len &= 3;
+	}
+
+#ifdef USE_SSE2
+
+	__m128 t = _mm_add_ps(acc, _mm_movehl_ps(acc, acc));
+	acc = _mm_add_ss(t, _mm_shuffle_ps(t, t, 1));
+	float sum = acc.m128_f32[0];
+
+#endif
+
+	if (len >= 2)
+	{
+		sum += kernel[0] * queue[0]
+			+ kernel[1] * queue[1];
+
+		//kernel += 2;
+		//queue += 2;
+		//len &= 1;
+	}
+
+	//if (len >= 1)
+	//{
+	//	sum += kernel[0] * queue[0];
+	//}
+
+	return sum;
+}
 
 static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
-
-#ifdef FIR_AUTO_VECTOR
-
-	int j;
-
-#endif
-
-#ifdef FIR_STANDARD
-
-	int it;
-
-#endif
-
 	int fir_index = cnv->fir_index;
 	int fir_len = cnv->len;
 	float *fir_kernel = cnv->fir_kernel;
 	float *fir_queue = cnv->fir_queue;
 	float *queue;
-	ALIGNED float acc;
-
-#if defined(USE_SSE2)
-
-	float *ptr1;
-	float *ptr2;
-	float *ptr3;
-
-#endif
-
-#if  defined(FIR_STANDARD)
-
-	float *kernel_it;
-	float *queue_it;
-	int left;
-
-
-#endif
 
 	for (i = 0; i < len; i += 2)
 	{
@@ -224,88 +225,7 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 
 		queue[0] = samples[i];
 
-#ifdef USE_SSE2
-
-		ptr1 = fir_kernel;
-		ptr2 = queue;
-		ptr3 = queue + fir_len - 1;
-
-		acc = process_folded_fir_sse2(ptr1, ptr2, ptr3, fir_len / 2);
-
-#endif
-
-#ifdef FIR_AUTO_VECTOR
-
-		acc = 0;
-
-		// Auto vectorization works on VS2012, VS2013, VS2015 and GCC
-		for (j = 0; j < fir_len; j++)
-		{
-			acc += fir_kernel[j] * queue[j];
-		}
-
-#endif
-
-#ifdef FIR_STANDARD
-
-		kernel_it = fir_kernel;
-		queue_it = queue;
-		left = fir_len;
-
-		acc = 0.0f;
-
-		if (left >= 8)
-		{
-			int iterations = left >> 3;
-
-			for (int i = 0; i < iterations; i++)
-			{
-				acc += kernel_it[0] * queue_it[0]
-					+  kernel_it[1] * queue_it[1]
-					+  kernel_it[2] * queue_it[2]
-					+  kernel_it[3] * queue_it[3]
-					+  kernel_it[4] * queue_it[4]
-					+  kernel_it[5] * queue_it[5]
-					+  kernel_it[6] * queue_it[6]
-					+  kernel_it[7] * queue_it[7];
-
-				kernel_it += 8;
-				queue_it += 8;
-			}
-
-			left &= 7;
-		}
-
-		if (left >= 4)
-		{
-			acc += kernel_it[0] * queue_it[0]
-				+  kernel_it[1] * queue_it[1]
-				+  kernel_it[2] * queue_it[2]
-				+  kernel_it[3] * queue_it[3];
-
-			kernel_it += 4;
-			queue_it += 4;
-			left &= 3;
-		}
-
-		if (left >= 2)
-		{
-			acc += kernel_it[0] * queue_it[0]
-				+  kernel_it[1] * queue_it[1];
-
-			kernel_it += 2;
-			queue_it += 2;
-			left &= 1;
-		}
-		
-		if (left >= 1)
-		{
-			acc += kernel_it[0] * queue_it[0];
-		}
-
-#endif
-
-		samples[i] = acc;
+		samples[i] = process_fir_tap(fir_kernel, queue, fir_len);
 
 		if (--fir_index < 0)
 		{
@@ -363,7 +283,7 @@ static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
 	int i;
 	ALIGNED float hbc = cnv->hbc;
 
-#if defined(USE_SSE2)
+#ifdef USE_SSE2
 
 	float *buf = samples;
 	ALIGNED __m128 vec;
