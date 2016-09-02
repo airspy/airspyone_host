@@ -104,6 +104,7 @@ void iqconverter_float_reset(iqconverter_float_t *cnv)
 
 _inline float process_fir_tap(const float *kernel, const float *queue, int len)
 {
+	int i;
 
 #ifdef USE_SSE2
 
@@ -121,7 +122,7 @@ _inline float process_fir_tap(const float *kernel, const float *queue, int len)
 
 #ifdef USE_SSE2
 
-		for (int i = 0; i < it; i++)
+		for (i = 0; i < it; i++)
 		{
 			__m128 head1 = _mm_loadu_ps(queue);
 			__m128 kern1 = _mm_load_ps(kernel);
@@ -141,7 +142,7 @@ _inline float process_fir_tap(const float *kernel, const float *queue, int len)
 
 #else
 
-		for (int i = 0; i < it; i++)
+		for (i = 0; i < it; i++)
 		{
 			sum += kernel[0] * queue[0]
 				+ kernel[1] * queue[1]
