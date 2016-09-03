@@ -80,7 +80,7 @@ iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 	for (i = 0, j = 0; i < cnv->len; i++, j += 2)
 	{
 		cnv->fir_kernel[i] = hb_kernel[j];
-	}
+	} 
 
 	return cnv;
 }
@@ -102,7 +102,7 @@ void iqconverter_float_reset(iqconverter_float_t *cnv)
 	memset(cnv->fir_queue, 0, cnv->len * sizeof(float) * SIZE_FACTOR);
 }
 
-_inline float process_fir_tap(const float *kernel, const float *queue, int len)
+_inline float process_fir_taps(const float *kernel, const float *queue, int len)
 {
 	int i;
 
@@ -211,7 +211,147 @@ _inline float process_fir_tap(const float *kernel, const float *queue, int len)
 	return sum;
 }
 
-static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
+static void fir_interleaved_4(iqconverter_float_t *cnv, float *samples, int len)
+{
+	int i;
+	int fir_index = cnv->fir_index;
+	int fir_len = cnv->len;
+	float *fir_kernel = cnv->fir_kernel;
+	float *fir_queue = cnv->fir_queue;
+	float *queue;
+	float acc;
+
+	for (i = 0; i < len; i += 2)
+	{
+		queue = fir_queue + fir_index;
+
+		queue[0] = samples[i];
+
+		acc = fir_kernel[0] * (queue[0] + queue[4 - 1])
+			+ fir_kernel[1] * (queue[1] + queue[4 - 2]);
+
+		samples[i] = acc;
+
+		if (--fir_index < 0)
+		{
+			fir_index = fir_len * (SIZE_FACTOR - 1);
+			memcpy(fir_queue + fir_index + 1, fir_queue, (fir_len - 1) * sizeof(float));
+		}
+	}
+
+	cnv->fir_index = fir_index;
+}
+
+static void fir_interleaved_8(iqconverter_float_t *cnv, float *samples, int len)
+{
+	int i;
+	int fir_index = cnv->fir_index;
+	int fir_len = cnv->len;
+	float *fir_kernel = cnv->fir_kernel;
+	float *fir_queue = cnv->fir_queue;
+	float *queue;
+	float acc;
+
+	for (i = 0; i < len; i += 2)
+	{
+		queue = fir_queue + fir_index;
+
+		queue[0] = samples[i];
+
+		acc = fir_kernel[0] * (queue[0] + queue[8 - 1])
+			+ fir_kernel[1] * (queue[1] + queue[8 - 2])
+			+ fir_kernel[2] * (queue[2] + queue[8 - 3])
+			+ fir_kernel[3] * (queue[3] + queue[8 - 4]);
+
+		samples[i] = acc;
+
+		if (--fir_index < 0)
+		{
+			fir_index = fir_len * (SIZE_FACTOR - 1);
+			memcpy(fir_queue + fir_index + 1, fir_queue, (fir_len - 1) * sizeof(float));
+		}
+	}
+
+	cnv->fir_index = fir_index;
+}
+
+static void fir_interleaved_12(iqconverter_float_t *cnv, float *samples, int len)
+{
+	int i;
+	int fir_index = cnv->fir_index;
+	int fir_len = cnv->len;
+	float *fir_kernel = cnv->fir_kernel;
+	float *fir_queue = cnv->fir_queue;
+	float *queue;
+	float acc = 0;
+
+	for (i = 0; i < len; i += 2)
+	{
+		queue = fir_queue + fir_index;
+
+		queue[0] = samples[i];
+
+		acc = fir_kernel[0]  * (queue[0]  + queue[12 - 1])
+			+ fir_kernel[1]  * (queue[1]  + queue[12 - 2])
+			+ fir_kernel[2]  * (queue[2]  + queue[12 - 3])
+			+ fir_kernel[3]  * (queue[3]  + queue[12 - 4])
+			+ fir_kernel[4]  * (queue[4]  + queue[12 - 5])
+			+ fir_kernel[5]  * (queue[5]  + queue[12 - 6]);
+
+		samples[i] = acc;
+
+		if (--fir_index < 0)
+		{
+			fir_index = fir_len * (SIZE_FACTOR - 1);
+			memcpy(fir_queue + fir_index + 1, fir_queue, (fir_len - 1) * sizeof(float));
+		}
+	}
+
+	cnv->fir_index = fir_index;
+}
+
+static void fir_interleaved_24(iqconverter_float_t *cnv, float *samples, int len)
+{
+	int i;
+	int fir_index = cnv->fir_index;
+	int fir_len = cnv->len;
+	float *fir_kernel = cnv->fir_kernel;
+	float *fir_queue = cnv->fir_queue;
+	float *queue;
+	float acc = 0;
+
+	for (i = 0; i < len; i += 2)
+	{
+		queue = fir_queue + fir_index;
+
+		queue[0] = samples[i];
+
+		acc = fir_kernel[0]  * (queue[0]  + queue[24 - 1])
+			+ fir_kernel[1]  * (queue[1]  + queue[24 - 2])
+			+ fir_kernel[2]  * (queue[2]  + queue[24 - 3])
+			+ fir_kernel[3]  * (queue[3]  + queue[24 - 4])
+			+ fir_kernel[4]  * (queue[4]  + queue[24 - 5])
+			+ fir_kernel[5]  * (queue[5]  + queue[24 - 6])
+			+ fir_kernel[6]  * (queue[6]  + queue[24 - 7])
+			+ fir_kernel[7]  * (queue[7]  + queue[24 - 8])
+			+ fir_kernel[8]  * (queue[8]  + queue[24 - 9])
+			+ fir_kernel[9]  * (queue[9]  + queue[24 - 10])
+			+ fir_kernel[10] * (queue[10] + queue[24 - 11])
+			+ fir_kernel[11] * (queue[11] + queue[24 - 12]);
+
+		samples[i] = acc;
+
+		if (--fir_index < 0)
+		{
+			fir_index = fir_len * (SIZE_FACTOR - 1);
+			memcpy(fir_queue + fir_index + 1, fir_queue, (fir_len - 1) * sizeof(float));
+		}
+	}
+
+	cnv->fir_index = fir_index;
+}
+
+static void fir_interleaved_generic(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
 	int fir_index = cnv->fir_index;
@@ -226,7 +366,7 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 
 		queue[0] = samples[i];
 
-		samples[i] = process_fir_tap(fir_kernel, queue, fir_len);
+		samples[i] = process_fir_taps(fir_kernel, queue, fir_len);
 
 		if (--fir_index < 0)
 		{
@@ -236,6 +376,28 @@ static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 	}
 
 	cnv->fir_index = fir_index;
+}
+
+static void fir_interleaved(iqconverter_float_t *cnv, float *samples, int len)
+{
+	switch (cnv->len)
+	{
+	case 4:
+		fir_interleaved_4(cnv, samples, len);
+		break;
+	case 8:
+		fir_interleaved_8(cnv, samples, len);
+		break;
+	case 12:
+		fir_interleaved_12(cnv, samples, len);
+		break;
+	case 24:
+		fir_interleaved_24(cnv, samples, len);
+		break;
+	default:
+		fir_interleaved_generic(cnv, samples, len);
+		break;
+	}
 }
 
 static void delay_interleaved(iqconverter_float_t *cnv, float *samples, int len)
