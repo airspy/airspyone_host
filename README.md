@@ -13,7 +13,7 @@ AirSpy: http://www.airspy.com
 ###Prerequisites for mingw:
 
 * cmake-2.8.12.1 or more see http://www.cmake.org/cmake/resources/software.html
-* libusb-1.0.19 or more see http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z/download
+* libusb-1.0.20 or more see https://github.com/libusb/libusb/releases/download/v1.0.20/libusb-1.0.20.7z
 * For Windows OS less than Vista Install Windows driver for AirSpy hardware or use Zadig see http://sourceforge.net/projects/libwdi/files/zadig
   - If you want to use Zadig  select AirSpy USB device and just install/replace it with WinUSB driver.
 
@@ -23,8 +23,8 @@ AirSpy: http://www.airspy.com
 
 ###For VisualStudio 2013 or later:
 
-* Download http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z/download
-* Extract libusb-1.0.19.7z to host directory
+* Download https://github.com/libusb/libusb/releases/download/v1.0.20/libusb-1.0.20.7z
+* Extract libusb-1.0.20.7z to host directory
 * Download ftp://mirrors.kernel.org/sourceware/pthreads-win32/pthreads-w32-2-9-1-release.zip
 * Extract pthreads-w32-2-9-1-release.zip to host directory
 * Launch host\libairspy\vc\airspy.sln with VisualStudio, choose Release and Build
