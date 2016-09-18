@@ -102,7 +102,7 @@ void iqconverter_float_reset(iqconverter_float_t *cnv)
 	memset(cnv->fir_queue, 0, cnv->len * sizeof(float) * SIZE_FACTOR);
 }
 
-_inline float process_fir_taps(const float *kernel, const float *queue, int len)
+static _inline float process_fir_taps(const float *kernel, const float *queue, int len)
 {
 	int i;
 
