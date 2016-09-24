@@ -1,8 +1,8 @@
 /*
 Copyright (c) 2012, Jared Boone <jared@sharebrained.com>
 Copyright (c) 2013, Michael Ossmann <mike@ossmann.com>
-Copyright (c) 2013/2014, Benjamin Vernoux <bvernoux@airspy.com>
-Copyright (C) 2013/2014, Youssef Touil <youssef@airspy.com>
+Copyright (c) 2013-2016, Benjamin Vernoux <bvernoux@airspy.com>
+Copyright (C) 2013-2016, Youssef Touil <youssef@airspy.com>
 
 All rights reserved.
 
@@ -28,10 +28,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include <stdint.h>
 #include "airspy_commands.h"
 
-#define AIRSPY_VERSION "1.0.8"
+#define AIRSPY_VERSION "1.0.9"
 #define AIRSPY_VER_MAJOR 1
 #define AIRSPY_VER_MINOR 0
-#define AIRSPY_VER_REVISION 8
+#define AIRSPY_VER_REVISION 9
 
 #ifdef _WIN32
 	 #define ADD_EXPORTS
