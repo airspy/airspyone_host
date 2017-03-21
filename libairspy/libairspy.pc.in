@@ -6,6 +6,6 @@ includedir=@includedir@
 Name: AirSpy Library
 Description: C Utility Library
 Version: @VERSION@
-Cflags: -I${includedir}/ @AIRSPY_PC_CFLAGS@
+Cflags: -I${includedir}/libairspy/ @AIRSPY_PC_CFLAGS@
 Libs: -L${libdir} -lairspy
 Libs.private: @AIRSPY_PC_LIBS@
