@@ -8,9 +8,9 @@ produce a low cost, open source software radio platform.
 
 AirSpy: http://www.airspy.com
 
-##How to build host software on Windows:
+## How to build host software on Windows:
 
-###Prerequisites for mingw:
+### Prerequisites for mingw:
 
 * cmake-2.8.12.1 or more see http://www.cmake.org/cmake/resources/software.html
 * libusb-1.0.20 or more see https://github.com/libusb/libusb/releases/download/v1.0.20/libusb-1.0.20.7z
@@ -21,7 +21,7 @@ AirSpy: http://www.airspy.com
  You shall always execute airspy_tools from Windows command shell and not from Cygwin or Mingw shell because on Cygwin/Mingw
  Ctrl C is not managed correctly and especially for airspy_rx the Ctrl C(abort) will not stop correctly and will corrupt the file.
 
-###For VisualStudio 2013 or later:
+### For VisualStudio 2013 or later:
 
 * Download https://github.com/libusb/libusb/releases/download/v1.0.20/libusb-1.0.20.7z
 * Extract libusb-1.0.20.7z to host directory
@@ -29,7 +29,7 @@ AirSpy: http://www.airspy.com
 * Extract pthreads-w32-2-9-1-release.zip to host directory
 * Launch host\libairspy\vc\airspy.sln with VisualStudio, choose Release and Build
 
-###For MinGW:
+### For MinGW:
 
 `cd host`
 
@@ -52,15 +52,15 @@ Debug version:
 `make install`
 
 
-##How to build the host software on Linux:
+## How to build the host software on Linux:
 
-###Prerequisites for Linux (Debian/Ubuntu/Raspbian):
+### Prerequisites for Linux (Debian/Ubuntu/Raspbian):
 
 
 `sudo apt-get install build-essential cmake libusb-1.0-0-dev pkg-config`
 
 
-###Build host software on Linux:
+### Build host software on Linux:
 
 `wget https://github.com/airspy/host/archive/master.zip`
 
@@ -80,14 +80,14 @@ Debug version:
 
 `sudo ldconfig`
 
-##Clean CMake temporary files/dirs:
+## Clean CMake temporary files/dirs:
 
 `cd host-master/build`
 
 `rm -rf *`
 
 
-##Principal authors:
+## Principal authors:
 
 Benjamin Vernoux <bvernoux@airspy.com> and Youssef Touil <youssef@airspy.com> 
 
