@@ -36,7 +36,7 @@ THE SOFTWARE.
   #include <malloc/malloc.h>
   #define _aligned_malloc(size, alignment) malloc(size)
   #define _aligned_free(mem) free(mem)
-  #define _inline inline
+  #define _inline static inline
   #define FIR_STANDARD
 #elif defined(__GNUC__) && !defined(__MINGW64_VERSION_MAJOR)
   #include <malloc.h>
