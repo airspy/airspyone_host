@@ -10,7 +10,7 @@ AirSpy: http://www.airspy.com
 
 For more details on how to build airspy-tools see previous directory host README.md file.
 
-##Principal authors:
+## Principal authors:
 
 Benjamin Vernoux <bvernoux@airspy.com> and Youssef Touil <youssef@airspy.com> 
 
