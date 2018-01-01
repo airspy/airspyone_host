@@ -122,7 +122,9 @@ extern ADDAPI void ADDCALL airspy_lib_version(airspy_lib_version_t* lib_version)
 extern ADDAPI int ADDCALL airspy_init(void);
 /* airspy_exit() deprecated */
 extern ADDAPI int ADDCALL airspy_exit(void);
- 
+
+extern ADDAPI int ADDCALL airspy_list_devices(uint64_t *serials, int count);
+
 extern ADDAPI int ADDCALL airspy_open_sn(struct airspy_device** device, uint64_t serial_number);
 extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
