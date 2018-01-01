@@ -901,7 +901,10 @@ int airspy_list_devices(uint64_t *serials, int count)
 	int i;
 	unsigned char serial_number[SERIAL_AIRSPY_EXPECTED_SIZE + 1];
 
-	memset(serials, 0, sizeof(uint64_t) * count);
+	if (serials)
+	{
+		memset(serials, 0, sizeof(uint64_t) * count);
+	}
 
 	if (libusb_init(&context) != 0)
 	{
@@ -915,7 +918,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 
 	i = 0;
 	output_count = 0;
-	while ((dev = devices[i++]) != NULL && output_count < count)
+	while ((dev = devices[i++]) != NULL && (!serials || output_count < count))
 	{
 		libusb_get_device_descriptor(dev, &device_descriptor);
 
@@ -950,7 +953,10 @@ int airspy_list_devices(uint64_t *serials, int count)
 						continue;
 					}
 
-					serials[output_count] = serial;
+					if (serials)
+					{
+						serials[output_count] = serial;
+					}
 					output_count++;
 				}
 
