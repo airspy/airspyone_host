@@ -102,11 +102,17 @@ Debug version:
 ### Build
 
 `git clone https:\\github.com\airspy\airspyone_host.git`
+
 `cd airspyone_host`
+
 `mkdir build`
+
 `cd build`
+
 `cmake .. -DLIBUSB_LIBRARIES=/usr/lib/libusb.so`
+
 `make`
+
 (from root)
 `make install`
 
