@@ -46,7 +46,7 @@ THE SOFTWARE.
 void *_aligned_malloc(size_t size, size_t alignment)
 {
     void *result;
-    if (posix_memalign(&result, size, alignment) == 0)
+    if (posix_memalign(&result, alignment, size) == 0)
         return result;
     return 0;
 }
