@@ -38,6 +38,18 @@ THE SOFTWARE.
   #define _aligned_free(mem) free(mem)
   #define _inline inline
   #define FIR_STANDARD
+#elif defined(__FreeBSD__)
+  #define USE_SSE2
+#include <immintrin.h>
+  #define _inline inline
+  #define _aligned_free(mem) free(mem)
+void *_aligned_malloc(size_t size, size_t alignment)
+{
+    void *result;
+    if (posix_memalign(&result, size, alignment) == 0)
+        return result;
+    return 0;
+}
 #elif defined(__GNUC__) && !defined(__MINGW64_VERSION_MAJOR)
   #include <malloc.h>
   #define _aligned_malloc(size, alignment) memalign(alignment, size)
@@ -189,7 +201,12 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 
 	__m128 t = _mm_add_ps(acc, _mm_movehl_ps(acc, acc));
 	acc = _mm_add_ss(t, _mm_shuffle_ps(t, t, 1));
+
+#ifdef __FreeBSD__
+	float sum = acc[0];
+#else
 	float sum = acc.m128_f32[0];
+#endif
 
 #endif
 
