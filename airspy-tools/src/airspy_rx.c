@@ -232,6 +232,9 @@ uint32_t sample_count = 0;
 bool freq = false;
 uint32_t freq_hz;
 
+bool bw = false;
+uint32_t bw_hz;
+
 bool limit_num_samples = false;
 uint64_t samples_to_xfer = 0;
 uint64_t bytes_to_xfer = 0;
@@ -478,6 +481,7 @@ static void usage(void)
 	printf("[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu] (default %luMHz)\n",
 		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
 	printf("[-a sample_rate]: Set sample rate\n");
+	printf("[-B bandwidth ]: Set IF bandwith\n");
 	printf("[-t sample_type]: Set sample type, \n");
 	printf(" 0=FLOAT32_IQ, 1=FLOAT32_REAL, 2=INT16_IQ(default), 3=INT16_REAL, 4=U16_REAL, 5=RAW\n");
 	printf("[-b biast]: Set Bias Tee, 1=enabled, 0=disabled(default)\n");
@@ -538,7 +542,7 @@ int main(int argc, char** argv)
 	double freq_hz_temp;
 	char str[20];
 
-	while( (opt = getopt(argc, argv, "r:ws:p:f:a:t:b:v:m:l:g:h:n:d")) != EOF )
+	while( (opt = getopt(argc, argv, "r:ws:p:f:B:a:t:b:v:m:l:g:h:n:d")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
@@ -587,6 +591,11 @@ int main(int argc, char** argv)
 			case 'a': /* Sample rate */
 				sample_rate = true;
 				result = parse_u32(optarg, &sample_rate_u32);
+			break;
+
+			case 'B': /* Bandwidth */
+				bw = true;
+				result = parse_u32(optarg, &bw_hz);
 			break;
 
 			case 't': /* Sample type see also airspy_sample_type */
@@ -916,8 +925,7 @@ int main(int argc, char** argv)
 	{
 		printf("sample_rate -a %d (%f MSPS %s)\n", sample_rate_val, wav_sample_per_sec * 0.000001f, wav_nb_channels == 1 ? "Real" : "IQ");
 	}
-	
-	result = airspy_board_partid_serialno_read(device, &read_partid_serialno);
+
 	if (result != AIRSPY_SUCCESS) {
 			fprintf(stderr, "airspy_board_partid_serialno_read() failed: %s (%d)\n",
 				airspy_error_name(result), result);
@@ -1031,6 +1039,22 @@ int main(int argc, char** argv)
 		airspy_exit();
 		return EXIT_FAILURE;
 	}
+
+	if(bw) {
+		result = airspy_set_bandwidth(device, bw_hz);
+		if (result != AIRSPY_SUCCESS) {
+			printf("airspy_set_bandwidth() failed: %s (%d)\n", airspy_error_name(result), result);
+			airspy_close(device);
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+		if (verbose)
+		{
+			printf("bandwidth -B %d \n", bw_hz);
+		}
+	}
+	
+	result = airspy_board_partid_serialno_read(device, &read_partid_serialno);
 
 	printf("Stop with Ctrl-C\n");
 

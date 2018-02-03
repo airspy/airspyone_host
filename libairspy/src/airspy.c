@@ -119,6 +119,14 @@ uint8_t airspy_sensitivity_vga_gains[GAIN_COUNT] = { 13, 12, 11, 10, 9, 8, 7, 6,
 uint8_t airspy_sensitivity_mixer_gains[GAIN_COUNT] = { 12, 12, 12, 12, 11, 10, 10, 9, 9, 8, 7, 4, 4, 4, 3, 2, 2, 1, 0, 0, 0, 0 };
 uint8_t airspy_sensitivity_lna_gains[GAIN_COUNT] = { 14, 14, 14, 14, 14, 14, 14, 14, 14, 13, 12, 12, 9, 9, 8, 7, 6, 5, 3, 2, 1, 0 };
 
+#define BW_REG0A 0x0a
+#define BW_REG0B 0x0b
+#define MAX_AIRSPY_BW 12
+static const uint32_t airspy_bw_tbl[MAX_AIRSPY_BW]={9000000,8000000,7000000,6000000,5000000,3400000,3000000,2500000,2000000,1500000,1000000,500000};
+static const uint8_t airspy_reg_0a[MAX_AIRSPY_BW]={0xa0,0xa4,0xa9,0xae,0xaf,0xa0,0xa4,0xa9,0xa2,0xaf,0xaf,0xaf};
+static const uint8_t airspy_reg_0b[MAX_AIRSPY_BW]={0x0f,0x0f,0x0f,0x4f,0x6f,0x8f,0x8f,0x8f,0xef,0xef,0xeb,0xe9};
+	
+
 static int cancel_transfers(airspy_device_t* device)
 {
 	uint32_t transfer_index;
@@ -1492,6 +1500,23 @@ extern "C"
 		else {
 			return AIRSPY_SUCCESS;
 		}
+	}
+
+	int ADDCALL airspy_set_bandwidth(airspy_device_t* device, const uint32_t bw_hz)
+	{
+		int idx;
+		int result;
+
+		for(idx=0;idx<MAX_AIRSPY_BW && bw_hz<airspy_bw_tbl[idx];idx++);
+
+		if(idx == MAX_AIRSPY_BW ) idx--;
+		
+		result =  airspy_r820t_write(device, BW_REG0A,  airspy_reg_0a[idx]);
+		if (result != AIRSPY_SUCCESS)
+		{
+			return result;
+		}
+		return airspy_r820t_write(device, BW_REG0B, airspy_reg_0b[idx]);
 	}
 
 	int ADDCALL airspy_set_conversion_filter_float32(struct airspy_device* device, const float *kernel, const uint32_t len)

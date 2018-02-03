@@ -174,6 +174,9 @@ extern ADDAPI int ADDCALL airspy_set_sample_type(struct airspy_device* device, e
 /* Parameter freq_hz shall be between 24000000(24MHz) and 1750000000(1.75GHz) */
 extern ADDAPI int ADDCALL airspy_set_freq(struct airspy_device* device, const uint32_t freq_hz);
 
+/* set rt820 tuner bandwidth */
+extern ADDAPI int ADDCALL airspy_set_bandwidth(struct airspy_device* device, const uint32_t bw_hz);
+
 /* Parameter value shall be between 0 and 15 */
 extern ADDAPI int ADDCALL airspy_set_lna_gain(struct airspy_device* device, uint8_t value);
 
