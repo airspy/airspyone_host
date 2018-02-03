@@ -116,6 +116,11 @@ Debug version:
 (from root)
 `make install`
 
+### Add users to group plugdev
+
+(from root)
+`useradd -a -G plugdev <user>`
+
 ## Principal authors:
 
 Benjamin Vernoux <bvernoux@airspy.com> and Youssef Touil <youssef@airspy.com> 
