@@ -1757,16 +1757,13 @@ int airspy_list_devices(uint64_t *serials, int count)
 	int ADDCALL airspy_set_linearity_gain(struct airspy_device* device, uint8_t value)
 	{
 		int rc;
-		value = GAIN_COUNT - 1 - value;
 
 		if (value >= GAIN_COUNT)
 		{
 			value = GAIN_COUNT - 1;
 		}
-		else if (value < 0)
-		{
-			value = 0;
-		}
+
+		value = GAIN_COUNT - 1 - value;
 
 		rc = airspy_set_mixer_agc(device, 0);
 		if (rc < 0)
@@ -1794,16 +1791,13 @@ int airspy_list_devices(uint64_t *serials, int count)
 	int ADDCALL airspy_set_sensitivity_gain(struct airspy_device* device, uint8_t value)
 	{
 		int rc;
-		value = GAIN_COUNT - 1 - value;
 
 		if (value >= GAIN_COUNT)
 		{
 			value = GAIN_COUNT - 1;
 		}
-		else if (value < 0)
-		{
-			value = 0;
-		}
+
+		value = GAIN_COUNT - 1 - value;
 
 		rc = airspy_set_mixer_agc(device, 0);
 		if (rc < 0)
