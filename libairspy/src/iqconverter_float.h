@@ -42,6 +42,19 @@ typedef struct {
 iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len);
 void iqconverter_float_free(iqconverter_float_t *cnv);
 void iqconverter_float_reset(iqconverter_float_t *cnv);
-void iqconverter_float_process(iqconverter_float_t *cnv, float *samples, int len);
+
+#ifdef USE_SSE2
+#define iqconverter_float_process iqconverter_float_process_sse
+#elif defined(USE_NEON)
+#define iqconverter_float_process iqconverter_float_process_neon
+#else
+#define iqconverter_float_process iqconverter_float_process_std
+#endif
+
+void iqconverter_float_process_std(iqconverter_float_t *cnv, float *samples, int len);
+// iqconverter_float_process_sse will only be linked in if USE_SSE2 is defined when compiling
+void iqconverter_float_process_sse(iqconverter_float_t *cnv, float *samples, int len);
+// iqconverter_float_process_neon will only be linked in if USE_NEON is defined when compiling
+void iqconverter_float_process_neon(iqconverter_float_t *cnv, float *samples, int len);
 
 #endif // IQCONVERTER_FLOAT_H

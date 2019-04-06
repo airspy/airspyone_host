@@ -3,13 +3,23 @@
 cmake_minimum_required(VERSION 2.8)
 project (airspy_all)
 
+# CPU specific
+option(SSE "Enable SSE" OFF)
+option(NEON "Enable Neon" OFF)
+option(FAST_DC_REMOVAL "Faster DC Removal (slightly less accurate)" OFF)
+
+message("-- SSE: ${SSE}")
+message("-- Neon: ${NEON}")
+message("-- Fast DC Removal: ${FAST_DC_REMOVAL}")
 #provide missing strtoull() for VC11
 if(MSVC11)
     add_definitions(-Dstrtoull=_strtoui64)
+    set(SSE ON)
 endif(MSVC11)
 
 add_subdirectory(libairspy)
 add_subdirectory(airspy-tools)
+
 
 ########################################################################
 # Create uninstall target
@@ -44,4 +54,3 @@ if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
  COPYONLY)
  endif()
 endif()
-

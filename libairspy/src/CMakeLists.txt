@@ -106,3 +106,23 @@ if( ${WIN32} )
            COMPONENT headers
            )
 endif( ${WIN32} )
+
+
+# benchmark
+add_executable(benchmark benchmark.c iqconverter_float.c)
+target_link_libraries(benchmark)
+
+# arch specific optimization options
+if (FAST_DC_REMOVAL)
+	target_compile_definitions(airspy PRIVATE FAST_DC_REMOVAL=1)
+	target_compile_definitions(benchmark PRIVATE FAST_DC_REMOVAL=1)
+endif()
+if (SSE)
+	target_compile_definitions(airspy PRIVATE USE_SSE2=1)
+	target_compile_definitions(benchmark PRIVATE USE_SSE2=1)
+endif()
+if (NEON)
+	target_compile_definitions(airspy PRIVATE USE_NEON=1)
+	target_compile_definitions(benchmark PRIVATE USE_NEON=1)
+	target_compile_options(benchmark PRIVATE --target=aarch64-arm-linux-eabi -mcpu=cortex-a57+fp+simd)
+endif()
