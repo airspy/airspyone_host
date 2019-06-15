@@ -620,10 +620,7 @@ static void airspy_open_device(airspy_device_t* device,
 	ssize_t cnt;
 	int serial_descriptor_index;
 	struct libusb_device_descriptor device_descriptor;
-	char serial_number_expected[SERIAL_AIRSPY_EXPECTED_SIZE + 1];
 	unsigned char serial_number[SERIAL_AIRSPY_EXPECTED_SIZE + 1];
-	uint32_t serial_number_msb_val;
-	uint32_t serial_number_lsb_val;
 
 	libusb_dev_handle = &device->usb_device;
 	*libusb_dev_handle = NULL;
