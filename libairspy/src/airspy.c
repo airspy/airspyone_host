@@ -620,10 +620,7 @@ static void airspy_open_device(airspy_device_t* device,
 	ssize_t cnt;
 	int serial_descriptor_index;
 	struct libusb_device_descriptor device_descriptor;
-	char serial_number_expected[SERIAL_AIRSPY_EXPECTED_SIZE + 1];
 	unsigned char serial_number[SERIAL_AIRSPY_EXPECTED_SIZE + 1];
-	uint32_t serial_number_msb_val;
-	uint32_t serial_number_lsb_val;
 
 	libusb_dev_handle = &device->usb_device;
 	*libusb_dev_handle = NULL;
@@ -660,17 +657,18 @@ static void airspy_open_device(airspy_device_t* device,
 						sizeof(serial_number));
 					if (serial_number_len == SERIAL_AIRSPY_EXPECTED_SIZE)
 					{
-						serial_number[SERIAL_AIRSPY_EXPECTED_SIZE] = 0;
-						upper_string(serial_number, SERIAL_AIRSPY_EXPECTED_SIZE);
-						serial_number_msb_val = (uint32_t)(serial_number_val >> 32);
-						serial_number_lsb_val = (uint32_t)(serial_number_val & 0xFFFFFFFF);
+						uint64_t serial = 0;
+						// use same code to determine device's serial number as in airspy_list_devices()
+						{
+							char *start, *end;
 
-						sprintf(serial_number_expected, "%s%08X%08X",
-							str_prefix_serial_airspy,
-							serial_number_msb_val,
-							serial_number_lsb_val);
+							serial_number[SERIAL_AIRSPY_EXPECTED_SIZE] = 0;
+							start = (char*)(serial_number + STR_PREFIX_SERIAL_AIRSPY_SIZE);
+							end = NULL;
+							serial = strtoull(start, &end, 16);
+						}
 
-						if (strncmp((const char*)serial_number, serial_number_expected, SERIAL_AIRSPY_EXPECTED_SIZE) == 0)
+						if (serial == serial_number_val)
 						{
 #ifdef __linux__
 							/* Check whether a kernel driver is attached to interface #0. If so, we'll
