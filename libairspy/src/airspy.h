@@ -129,6 +129,7 @@ extern ADDAPI int ADDCALL airspy_open_sn(struct airspy_device** device, uint64_t
 extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
 
+/* Use airspy_get_samplerates(device, buffer, 0) to get the number of available sample rates. It will be returned in the first element of buffer */
 extern ADDAPI int ADDCALL airspy_get_samplerates(struct airspy_device* device, uint32_t* buffer, const uint32_t len);
 
 /* Parameter samplerate can be either the index of a samplerate or directly its value in Hz within the list returned by airspy_get_samplerates() */
