@@ -478,11 +478,17 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 		if (libusb_submit_transfer(usb_transfer) != 0)
 		{
 			device->streaming = false;
+			pthread_mutex_lock(&device->consumer_mp);
+			pthread_cond_signal(&device->consumer_cv);
+			pthread_mutex_unlock(&device->consumer_mp);
 		}
 	}
 	else
 	{
 		device->streaming = false;
+		pthread_mutex_lock(&device->consumer_mp);
+		pthread_cond_signal(&device->consumer_cv);
+		pthread_mutex_unlock(&device->consumer_mp);
 	}
 }
 
@@ -504,7 +510,12 @@ static void* transfer_threadproc(void* arg)
 		if (error < 0)
 		{
 			if (error != LIBUSB_ERROR_INTERRUPTED)
+			{
 				device->streaming = false;
+				pthread_mutex_lock(&device->consumer_mp);
+				pthread_cond_signal(&device->consumer_cv);
+				pthread_mutex_unlock(&device->consumer_mp);
+			}
 		}
 	}
 
