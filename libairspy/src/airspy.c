@@ -477,12 +477,12 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 
 		if (libusb_submit_transfer(usb_transfer) != 0)
 		{
-			device->streaming = false;
+			device->stop_requested = true;
 		}
 	}
 	else
 	{
-		device->streaming = false;
+		device->stop_requested = true;
 	}
 }
 
@@ -504,7 +504,7 @@ static void* transfer_threadproc(void* arg)
 		if (error < 0)
 		{
 			if (error != LIBUSB_ERROR_INTERRUPTED)
-				device->streaming = false;
+				device->stop_requested = true;
 		}
 	}
 
@@ -1872,7 +1872,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 
 	int ADDCALL airspy_is_streaming(airspy_device_t* device)
 	{
-		return device->streaming == true;
+		return (device->streaming == true && device->stop_requested == false);
 	}
 
 	const char* ADDCALL airspy_error_name(enum airspy_error errcode)
