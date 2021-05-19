@@ -515,6 +515,8 @@ static void* transfer_threadproc(void* arg)
 
 static int kill_io_threads(airspy_device_t* device)
 {
+	struct timeval timeout = { 0, 0 };
+
 	if (device->streaming)
 	{
 		device->stop_requested = true;
@@ -526,6 +528,8 @@ static int kill_io_threads(airspy_device_t* device)
 
 		pthread_join(device->transfer_thread, NULL);
 		pthread_join(device->consumer_thread, NULL);
+
+		libusb_handle_events_timeout(device->usb_context, &timeout);
 
 		device->stop_requested = false;
 		device->streaming = false;
