@@ -529,7 +529,7 @@ static int kill_io_threads(airspy_device_t* device)
 		pthread_join(device->transfer_thread, NULL);
 		pthread_join(device->consumer_thread, NULL);
 
-		libusb_handle_events_timeout(device->usb_context, &timeout);
+		libusb_handle_events_timeout_completed(device->usb_context, &timeout, NULL);
 
 		device->stop_requested = false;
 		device->streaming = false;
