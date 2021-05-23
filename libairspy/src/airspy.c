@@ -102,13 +102,7 @@ typedef struct airspy_device
 static const uint16_t airspy_usb_vid = 0x1d50;
 static const uint16_t airspy_usb_pid = 0x60a1;
 
-#define STR_PRODUCT_AIRSPY_SIZE (6)
-static const char str_product_airspy[STR_PRODUCT_AIRSPY_SIZE] =
-{ 'A', 'I', 'R', 'S', 'P', 'Y' };
-
 #define STR_PREFIX_SERIAL_AIRSPY_SIZE (10)
-static const char str_prefix_serial_airspy[STR_PREFIX_SERIAL_AIRSPY_SIZE] =
-{ 'A', 'I', 'R', 'S', 'P', 'Y', ' ', 'S', 'N', ':' };
 
 #define SERIAL_AIRSPY_EXPECTED_SIZE (26)
 
@@ -592,19 +586,6 @@ static void airspy_open_exit(airspy_device_t* device)
 	}
 	libusb_exit(device->usb_context);
 	device->usb_context = NULL;
-}
-
-static void upper_string(unsigned char *string, size_t len)
-{
-	while (len > 0)
-	{
-		if (*string >= 'a' && *string <= 'z')
-		{
-			*string = *string - 32;
-		}
-		string++;
-		len--;
-	}
 }
 
 static void airspy_open_device(airspy_device_t* device,
