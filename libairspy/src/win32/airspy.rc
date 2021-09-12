@@ -23,14 +23,14 @@ BEGIN
     BLOCK "040904E4"
     //language ID = U.S. English, char set = Windows, Multilingual
     BEGIN
-      VALUE "FileDescription",	"AirSpy library\0"
+      VALUE "FileDescription",	"Airspy library\0"
       VALUE "FileVersion",	AIRSPY_VERSION "\0"
       VALUE "InternalName",	"airspy.dll\0"
-      VALUE "LegalCopyright",	"(C) 2013-2016 AirSpy\0"
+      VALUE "LegalCopyright",	"(C) 2013-2021 Airspy\0"
       VALUE "OriginalFilename",	"airspy.dll\0"
-      VALUE "ProductName",	"airspy\0"
+      VALUE "ProductName",	"Airspy SDR\0"
       VALUE "ProductVersion",	AIRSPY_VERSION "\0"
-      VALUE "Comments",		"For more information visit http://www.airspy.com\0"
+      VALUE "Comments",		"For more information visit https://www.airspy.com\0"
     END
   END
   BLOCK "VarFileInfo"

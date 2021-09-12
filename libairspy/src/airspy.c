@@ -985,8 +985,8 @@ int airspy_list_devices(uint64_t *serials, int count)
 			pthread_cond_destroy(&device->consumer_cv);
 			pthread_mutex_destroy(&device->consumer_mp);
 
-			airspy_open_exit(device);
 			free_transfers(device);
+			airspy_open_exit(device);
 			free(device->supported_samplerates);
 			free(device);
 		}
