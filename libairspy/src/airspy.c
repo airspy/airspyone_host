@@ -27,6 +27,11 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include <stdlib.h>
 #include <string.h>
 #include <libusb.h>
+
+#if _MSC_VER > 1700  // To avoid error with Visual Studio 2017/2019 or more define which define timespec as it is already defined in pthread.h
+#define HAVE_STRUCT_TIMESPEC
+#endif
+
 #include <pthread.h>
 
 #include "airspy.h"
