@@ -119,7 +119,7 @@ Debug version:
 ### Add users to group plugdev
 
 (from root)
-`useradd -a -G plugdev <user>`
+`usermod -a -G plugdev <user>`
 
 ## Principal authors:
 
