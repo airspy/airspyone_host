@@ -62,6 +62,7 @@ typedef int bool;
 #define SAMPLE_SCALE (1.0f / (1 << (15 - SAMPLE_SHIFT)))
 
 #define SERIAL_NUMBER_UNUSED (0ULL)
+#define FILE_DESCRIPTOR_UNUSED (-1)
 
 #define USB_PRODUCT_ID (2)
 #define STR_DESCRIPTOR_SIZE (250)
@@ -746,6 +747,51 @@ static void airspy_open_device(airspy_device_t* device,
 	return;
 }
 
+static void airspy_open_device_fd(airspy_device_t* device,
+	int* ret,
+	int fd)
+{
+	int result;
+
+	result = libusb_wrap_sys_device(device->usb_context, (intptr_t)fd, &device->usb_device);
+	if (result != 0 || device->usb_device == NULL)
+	{
+		*ret = AIRSPY_ERROR_LIBUSB;
+		return;
+	}
+
+#ifdef __linux__
+	/* Check whether a kernel driver is attached to interface #0. If so, we'll
+	* need to detach it.
+	*/
+	if (libusb_kernel_driver_active(device->usb_device, 0))
+	{
+		libusb_detach_kernel_driver(device->usb_device, 0);
+	}
+#endif
+
+	result = libusb_set_configuration(device->usb_device, 1);
+	if (result != 0)
+	{
+		libusb_close(device->usb_device);
+		device->usb_device = NULL;
+		*ret = AIRSPY_ERROR_LIBUSB;
+		return;
+	}
+
+	result = libusb_claim_interface(device->usb_device, 0);
+	if (result != 0)
+	{
+		libusb_close(device->usb_device);
+		device->usb_device = NULL;
+		*ret = AIRSPY_ERROR_LIBUSB;
+		return;
+	}
+
+	*ret = AIRSPY_SUCCESS;
+	return;
+}
+
 static int airspy_read_samplerates_from_fw(struct airspy_device* device, uint32_t* buffer, const uint32_t len)
 {
 	int result;
@@ -768,7 +814,7 @@ static int airspy_read_samplerates_from_fw(struct airspy_device* device, uint32_
 	return AIRSPY_SUCCESS;
 }
 
-static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
+static int airspy_open_init(airspy_device_t** device, uint64_t serial_number, int fd)
 {
 	airspy_device_t* lib_device;
 	int libusb_error;
@@ -782,6 +828,11 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 		return AIRSPY_ERROR_NO_MEM;
 	}
 
+#ifdef __ANDROID__
+	// LibUSB does not support device discovery on android
+	libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
+
 	libusb_error = libusb_init(&lib_device->usb_context);
 	if (libusb_error != 0)
 	{
@@ -789,11 +840,19 @@ static int airspy_open_init(airspy_device_t** device, uint64_t serial_number)
 		return AIRSPY_ERROR_LIBUSB;
 	}
 
-	airspy_open_device(lib_device,
-		&result,
-		airspy_usb_vid,
-		airspy_usb_pid,
-		serial_number);
+	if (fd == FILE_DESCRIPTOR_UNUSED) {
+		airspy_open_device(lib_device,
+			&result,
+			airspy_usb_vid,
+			airspy_usb_pid,
+			serial_number);
+	}
+	else {
+		airspy_open_device_fd(lib_device,
+			&result,
+			fd);
+	}
+
 	if (lib_device->usb_device == NULL)
 	{
 		libusb_exit(lib_device->usb_context);
@@ -962,7 +1021,15 @@ int airspy_list_devices(uint64_t *serials, int count)
 	{
 		int result;
 
-		result = airspy_open_init(device, serial_number);
+		result = airspy_open_init(device, serial_number, FILE_DESCRIPTOR_UNUSED);
+		return result;
+	}
+
+	int ADDCALL airspy_open_fd(airspy_device_t** device, int fd)
+	{
+		int result;
+
+		result = airspy_open_init(device, SERIAL_NUMBER_UNUSED, fd);
 		return result;
 	}
 
@@ -970,7 +1037,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 	{
 		int result;
 
-		result = airspy_open_init(device, SERIAL_NUMBER_UNUSED);
+		result = airspy_open_init(device, SERIAL_NUMBER_UNUSED, FILE_DESCRIPTOR_UNUSED);
 		return result;
 	}
 
