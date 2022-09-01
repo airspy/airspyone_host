@@ -953,6 +953,11 @@ int airspy_list_devices(uint64_t *serials, int count)
 		memset(serials, 0, sizeof(uint64_t) * count);
 	}
 
+#ifdef __ANDROID__
+	// LibUSB does not support device discovery on android
+	libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
+
 	if (libusb_init(&context) != 0)
 	{
 		return AIRSPY_ERROR_LIBUSB;
