@@ -751,9 +751,16 @@ static void airspy_open_device_fd(airspy_device_t* device,
 	int* ret,
 	int fd)
 {
-	int result;
+	int result = -1;
 
+#ifndef _WIN32
 	result = libusb_wrap_sys_device(device->usb_context, (intptr_t)fd, &device->usb_device);
+#else
+	device->usb_device = NULL;
+	*ret = AIRSPY_ERROR_UNSUPPORTED;
+	return;
+#endif
+
 	if (result != 0 || device->usb_device == NULL)
 	{
 		*ret = AIRSPY_ERROR_LIBUSB;
