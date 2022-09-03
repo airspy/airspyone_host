@@ -67,6 +67,7 @@ enum airspy_error
 	AIRSPY_ERROR_NOT_FOUND = -5,
 	AIRSPY_ERROR_BUSY = -6,
 	AIRSPY_ERROR_NO_MEM = -11,
+	AIRSPY_ERROR_UNSUPPORTED = -12,
 	AIRSPY_ERROR_LIBUSB = -1000,
 	AIRSPY_ERROR_THREAD = -1001,
 	AIRSPY_ERROR_STREAMING_THREAD_ERR = -1002,
@@ -126,6 +127,7 @@ extern ADDAPI int ADDCALL airspy_exit(void);
 extern ADDAPI int ADDCALL airspy_list_devices(uint64_t *serials, int count);
 
 extern ADDAPI int ADDCALL airspy_open_sn(struct airspy_device** device, uint64_t serial_number);
+extern ADDAPI int ADDCALL airspy_open_fd(struct airspy_device** device, int fd);
 extern ADDAPI int ADDCALL airspy_open(struct airspy_device** device);
 extern ADDAPI int ADDCALL airspy_close(struct airspy_device* device);
 
