@@ -753,7 +753,7 @@ static void airspy_open_device_fd(airspy_device_t* device,
 {
 	int result = -1;
 
-#ifndef _WIN32
+#ifdef __ANDROID__
 	result = libusb_wrap_sys_device(device->usb_context, (intptr_t)fd, &device->usb_device);
 #else
 	device->usb_device = NULL;
