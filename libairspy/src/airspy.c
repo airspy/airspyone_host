@@ -1547,7 +1547,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 	{
 #define VERSION_LOCAL_SIZE (128)
 		int result;
-		char version_local[VERSION_LOCAL_SIZE];
+		char version_local[VERSION_LOCAL_SIZE] = "";
 
 		result = libusb_control_transfer(
 			device->usb_device,
@@ -1567,8 +1567,9 @@ int airspy_list_devices(uint64_t *serials, int count)
 		{
 			if (length > 0)
 			{
-				memcpy(version, version_local, length - 1);
-				version[length - 1] = 0;
+				const int num_bytes_to_copy = (length > VERSION_LOCAL_SIZE ? VERSION_LOCAL_SIZE : length) - 1;
+				memcpy(version, version_local, num_bytes_to_copy);
+				version[num_bytes_to_copy] = 0;
 				return AIRSPY_SUCCESS;
 			}
 			else
