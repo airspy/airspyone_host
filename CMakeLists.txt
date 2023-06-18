@@ -30,18 +30,20 @@ add_custom_target(uninstall
 ########################################################################
 
 if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
- if (NOT DEFINED LIBUSB_LIBRARIES)
- configure_file(
-     ${CMAKE_CURRENT_BINARY_DIR}/../libs_win32/libusb-1.0.dll
-     ${CMAKE_CURRENT_BINARY_DIR}/airspy-tools/src/libusb-1.0.dll
- COPYONLY)
- endif()
-
- if (NOT DEFINED THREADS_PTHREADS_WIN32_LIBRARY)
- configure_file(
-     ${CMAKE_CURRENT_BINARY_DIR}/../libs_win32/pthreadGC2.dll
-     ${CMAKE_CURRENT_BINARY_DIR}/airspy-tools/src/pthreadGC2.dll
- COPYONLY)
- endif()
+ if (NOT MINGW)
+   if (NOT DEFINED LIBUSB_LIBRARIES)
+   configure_file(
+       ${CMAKE_CURRENT_BINARY_DIR}/../libs_win32/libusb-1.0.dll
+       ${CMAKE_CURRENT_BINARY_DIR}/airspy-tools/src/libusb-1.0.dll
+   COPYONLY)
+   endif()
+   
+   if (NOT DEFINED THREADS_PTHREADS_WIN32_LIBRARY)
+   configure_file(
+       ${CMAKE_CURRENT_BINARY_DIR}/../libs_win32/pthreadGC2.dll
+       ${CMAKE_CURRENT_BINARY_DIR}/airspy-tools/src/pthreadGC2.dll
+   COPYONLY)
+   endif()
+  endif()
 endif()
 
