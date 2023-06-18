@@ -77,6 +77,18 @@ void *_aligned_malloc(size_t size, size_t alignment)
 	#define ALIGNED
 #endif
 
+#if defined(USE_NEON)
+static _inline float horizontal_sum_neon_f32(const float32x4_t v) {
+#  if defined(__aarch64__) || defined(_M_ARM64)
+	return vaddvq_f32(v);
+#  else
+	float32x2_t r = vadd_f32(vget_low_f32(v), vget_high_f32(v));
+	r = vpadd_f32(r, r);
+	return vget_lane_f32(r, 0);
+#  endif
+}
+#endif
+
 iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
 {
 	int i, j;
@@ -239,7 +251,7 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 #endif
 
 #elif defined(USE_NEON)
-	float sum = vaddvq_f32(acc);
+	float sum = horizontal_sum_neon_f32(acc);
 #endif
 
 	if (len >= 2)
@@ -406,7 +418,7 @@ static void fir_interleaved_24(iqconverter_float_t *cnv, float *samples, int len
 		acc = vmlaq_f32(acc, kernel2, vaddq_f32(queue2_1, queue2_2));
 		acc = vmlaq_f32(acc, kernel3, vaddq_f32(queue3_1, queue3_2));
 
-		samples[i] = vaddvq_f32(acc);
+		samples[i] = horizontal_sum_neon_f32(acc);
 #else
 		acc = fir_kernel[0]  * (queue[0]  + queue[24 - 1])
 			+ fir_kernel[1]  * (queue[1]  + queue[24 - 2])
