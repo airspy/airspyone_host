@@ -173,6 +173,7 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 			kernel += 8;
 
 #elif defined(USE_NEON)
+		float32x4_t acc2 = vmovq_n_f32(0);
 
 		for (i = 0; i < it; i++)
 		{
@@ -182,11 +183,13 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 			const float32x4_t kern2 = vld1q_f32(kernel + 4);
 
 			acc = vmlaq_f32(acc, kern1, head1);
-			acc = vmlaq_f32(acc, kern2, head2);
+			acc2 = vmlaq_f32(acc2, kern2, head2);
 
 			queue += 8;
 			kernel += 8;
 		}
+
+		acc = vaddq_f32(acc, acc2);
 
 #else
 
