@@ -426,16 +426,16 @@ static void* consumer_threadproc(void *arg)
 
 		if (device->callback(&transfer) != 0)
 		{
-			device->stop_requested = true;
+			device->streaming = false;
 		}
 
 		pthread_mutex_lock(&device->consumer_mp);
 		device->received_buffer_count--;
 	}
 
-	pthread_mutex_unlock(&device->consumer_mp);
+	device->streaming = false;
 
-	pthread_exit(NULL);
+	pthread_mutex_unlock(&device->consumer_mp);
 
 	return NULL;
 }
@@ -477,12 +477,12 @@ static void airspy_libusb_transfer_callback(struct libusb_transfer* usb_transfer
 
 		if (libusb_submit_transfer(usb_transfer) != 0)
 		{
-			device->stop_requested = true;
+			device->streaming = false;
 		}
 	}
 	else
 	{
-		device->stop_requested = true;
+		device->streaming = false;
 	}
 }
 
@@ -504,11 +504,11 @@ static void* transfer_threadproc(void* arg)
 		if (error < 0)
 		{
 			if (error != LIBUSB_ERROR_INTERRUPTED)
-				device->stop_requested = true;
+				device->streaming = false;
 		}
 	}
-
-	pthread_exit(NULL);
+	
+	device->streaming = false;
 
 	return NULL;
 }
@@ -517,9 +517,10 @@ static int kill_io_threads(airspy_device_t* device)
 {
 	struct timeval timeout = { 0, 0 };
 
-	if (device->streaming)
+	if (device->stop_requested)
 	{
-		device->stop_requested = true;
+		device->stop_requested = false;
+		device->streaming = false;
 		cancel_transfers(device);
 
 		pthread_mutex_lock(&device->consumer_mp);
@@ -530,9 +531,6 @@ static int kill_io_threads(airspy_device_t* device)
 		pthread_join(device->consumer_thread, NULL);
 
 		libusb_handle_events_timeout_completed(device->usb_context, &timeout, NULL);
-
-		device->stop_requested = false;
-		device->streaming = false;
 	}
 
 	return AIRSPY_SUCCESS;
@@ -1212,14 +1210,16 @@ int airspy_list_devices(uint64_t *serials, int count)
 	int ADDCALL airspy_stop_rx(airspy_device_t* device)
 	{
 		int result1, result2;
-		result1 = kill_io_threads(device);
 
-		result2 = airspy_set_receiver_mode(device, RECEIVER_MODE_OFF);
-		if (result2 != AIRSPY_SUCCESS)
+		device->stop_requested = true;
+		result1 = airspy_set_receiver_mode(device, RECEIVER_MODE_OFF);
+		result2 = kill_io_threads(device);
+
+		if (result1 != AIRSPY_SUCCESS)
 		{
-			return result2;
+			return result1;
 		}
-		return result1;
+		return result2;
 	}
 
 	int ADDCALL airspy_si5351c_read(airspy_device_t* device, uint8_t register_number, uint8_t* value)
