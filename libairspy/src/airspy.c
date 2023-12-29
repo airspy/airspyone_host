@@ -70,6 +70,8 @@ typedef int bool;
 #define MIN_SAMPLERATE_BY_VALUE (1000000)
 #define SAMPLE_TYPE_IS_IQ(x) ((x) == AIRSPY_SAMPLE_FLOAT32_IQ || (x) == AIRSPY_SAMPLE_INT16_IQ)
 
+#define LIBUSB_CTRL_TIMEOUT_MS (500)
+
 typedef struct {
 	uint32_t freq_hz;
 } set_freq_params_t;
@@ -809,7 +811,7 @@ static int airspy_read_samplerates_from_fw(struct airspy_device* device, uint32_
 		len,
 		(unsigned char*)buffer,
 		(len > 0 ? len : 1) * sizeof(uint32_t),
-		0);
+		LIBUSB_CTRL_TIMEOUT_MS);
 
 	if (result < 1)
 	{
@@ -1144,8 +1146,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			samplerate,
 			&retval,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1167,8 +1168,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			NULL,
 			0,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1236,7 +1236,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			register_number,
 			(unsigned char*)&temp_value,
 			1,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 1)
 		{
@@ -1260,7 +1260,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			register_number,
 			NULL,
 			0,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1283,7 +1283,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			register_number,
 			(unsigned char*)value,
 			1,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 1)
 		{
@@ -1306,7 +1306,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			register_number,
 			NULL,
 			0,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1333,7 +1333,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			port_pin,
 			(unsigned char*)value,
 			1,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 1)
 		{
@@ -1360,7 +1360,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			port_pin,
 			NULL,
 			0,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1388,7 +1388,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			port_pin,
 			(unsigned char*)value,
 			1,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 1)
 		{
@@ -1415,7 +1415,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			port_pin,
 			NULL,
 			0,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1437,7 +1437,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			NULL,
 			0,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1459,7 +1459,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			NULL,
 			0,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result != 0)
 		{
@@ -1487,7 +1487,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			address & 0xFFFF,
 			data,
 			length,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1510,7 +1510,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			address & 0xFFFF,
 			data,
 			length,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1532,7 +1532,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			value,
 			1,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 1)
 		{
@@ -1557,7 +1557,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			(unsigned char*)version_local,
 			(VERSION_LOCAL_SIZE - 1),
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 0)
 		{
@@ -1593,7 +1593,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			(unsigned char*)read_partid_serialno,
 			length,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1635,8 +1635,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			0,
 			(unsigned char*)&set_freq_params,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1692,8 +1691,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			value,
 			&retval,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1723,8 +1721,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			value,
 			&retval,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1754,8 +1751,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			value,
 			&retval,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1782,8 +1778,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			value,
 			&retval,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1810,8 +1805,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			value,
 			&retval,
 			length,
-			0
-			);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < length)
 		{
@@ -1914,7 +1908,7 @@ int airspy_list_devices(uint64_t *serials, int count)
 			value,
 			&retval,
 			1,
-			0);
+			LIBUSB_CTRL_TIMEOUT_MS);
 
 		if (result < 1)
 		{
