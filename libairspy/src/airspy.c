@@ -529,8 +529,14 @@ static int kill_io_threads(airspy_device_t* device)
 		pthread_cond_signal(&device->consumer_cv);
 		pthread_mutex_unlock(&device->consumer_mp);
 
-		pthread_join(device->transfer_thread, NULL);
-		pthread_join(device->consumer_thread, NULL);
+		if (device->transfer_thread != 0) {
+		    pthread_join(device->transfer_thread, NULL);
+		    device->transfer_thread = 0;
+		}
+		if (device->consumer_thread != 0) {
+		    pthread_join(device->consumer_thread, NULL);
+		    device->consumer_thread = 0;
+		}
 
 		libusb_handle_events_timeout_completed(device->usb_context, &timeout, NULL);
 	}
