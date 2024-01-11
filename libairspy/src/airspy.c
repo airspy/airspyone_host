@@ -86,6 +86,8 @@ typedef struct airspy_device
 	volatile bool stop_requested;
 	pthread_t transfer_thread;
 	pthread_t consumer_thread;
+	bool transfer_thread_running;
+	bool consumer_thread_running;
 	pthread_cond_t consumer_cv;
 	pthread_mutex_t consumer_mp;
 	uint32_t supported_samplerate_count;
@@ -529,13 +531,13 @@ static int kill_io_threads(airspy_device_t* device)
 		pthread_cond_signal(&device->consumer_cv);
 		pthread_mutex_unlock(&device->consumer_mp);
 
-		if (device->transfer_thread != 0) {
+		if (device->transfer_thread_running) {
 		    pthread_join(device->transfer_thread, NULL);
-		    device->transfer_thread = 0;
+		    device->transfer_thread_running = false;
 		}
-		if (device->consumer_thread != 0) {
+		if (device->consumer_thread_running) {
 		    pthread_join(device->consumer_thread, NULL);
-		    device->consumer_thread = 0;
+		    device->consumer_thread_running = false;
 		}
 
 		libusb_handle_events_timeout_completed(device->usb_context, &timeout, NULL);
@@ -572,12 +574,14 @@ static int create_io_threads(airspy_device_t* device, airspy_sample_block_cb_fn 
 		{
 			return AIRSPY_ERROR_THREAD;
 		}
+		device->consumer_thread_running = true;
 
 		result = pthread_create(&device->transfer_thread, &attr, transfer_threadproc, device);
 		if (result != 0)
 		{
 			return AIRSPY_ERROR_THREAD;
 		}
+		device->transfer_thread_running = true;
 
 		pthread_attr_destroy(&attr);
 	}
