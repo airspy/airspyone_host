@@ -21,7 +21,7 @@
 
 # Based heavily upon the libftdi cmake setup.
 
-cmake_minimum_required(VERSION 2.8.12.1)
+cmake_minimum_required(VERSION 2.8.12.1...3.27)
 project(libairspy C)
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/airspy.h AIRSPY_H_CONTENTS)
 
