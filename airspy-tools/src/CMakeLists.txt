@@ -1,5 +1,5 @@
 # Copyright 2012 Jared Boone
-# Copyright 2013/2014 Benjamin Vernoux
+# Copyright 2013/2014/2024 Benjamin Vernoux
 #
 # This file is part of AirSpy (based on HackRF project).
 #
@@ -47,6 +47,9 @@ install(TARGETS airspy_r820t RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
 add_executable(airspy_spiflash airspy_spiflash.c)
 install(TARGETS airspy_spiflash RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
 
+add_executable(airspy_calibrate airspy_calibrate.c)
+install(TARGETS airspy_calibrate RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
+
 add_executable(airspy_info airspy_info.c)
 install(TARGETS airspy_info RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
 
@@ -70,5 +73,6 @@ target_link_libraries(airspy_lib_version ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_si5351c ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_r820t ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_spiflash ${TOOLS_LINK_LIBS})
+target_link_libraries(airspy_calibrate ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_info ${TOOLS_LINK_LIBS})
 target_link_libraries(airspy_rx ${TOOLS_LINK_LIBS})
