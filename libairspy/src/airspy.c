@@ -39,6 +39,11 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 #include "iqconverter_int16.h"
 #include "filters.h"
 
+#if defined(__ARM_NEON) && __ARM_NEON
+  #include <arm_neon.h>
+  #define USE_NEON
+#endif
+
 #ifndef bool
 typedef int bool;
 #define true 1
@@ -310,13 +315,33 @@ static void convert_samples_int16(uint16_t *src, int16_t *dest, int count)
 
 static void convert_samples_float(uint16_t *src, float *dest, int count)
 {
+#if defined(USE_NEON)
+	const float32x4_t offset_f32 = vmovq_n_f32(2048);
+	const float32x4_t sample_scale_f32 = vmovq_n_f32(SAMPLE_SCALE);
+#endif
+
 	int i;
 	for (i = 0; i < count; i += 4)
 	{
+
+#if defined(USE_NEON)
+
+		const uint16x4_t src_u16 = vld1_u16(src + i);
+		const uint32x4_t src_u32 = vmovl_u16(src_u16);
+		const float32x4_t src_f32 = vcvtq_f32_u32(src_u32);
+		const float32x4_t src_offset_f32 = vsubq_f32(src_f32, offset_f32);
+		const float32x4_t dest_f32 = vmulq_f32(src_offset_f32, sample_scale_f32);
+
+		vst1q_f32(dest + i, dest_f32);
+
+#else
+
 		dest[i + 0] = (src[i + 0] - 2048) * SAMPLE_SCALE;
 		dest[i + 1] = (src[i + 1] - 2048) * SAMPLE_SCALE;
 		dest[i + 2] = (src[i + 2] - 2048) * SAMPLE_SCALE;
 		dest[i + 3] = (src[i + 3] - 2048) * SAMPLE_SCALE;
+
+#endif
 	}
 }
 
