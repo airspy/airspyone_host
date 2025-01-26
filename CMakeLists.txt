@@ -8,6 +8,12 @@ if(MSVC11)
     add_definitions(-Dstrtoull=_strtoui64)
 endif(MSVC11)
 
+if (MSVC)
+    add_compile_options(/std:c17)
+else()
+    add_compile_options(-std=gnu17)
+endif()
+
 add_subdirectory(libairspy)
 add_subdirectory(airspy-tools)
 
