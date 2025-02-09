@@ -62,6 +62,11 @@ void *_aligned_malloc(size_t size, size_t alignment)
 	#endif
 #endif
 
+#if defined(__ARM_NEON) && __ARM_NEON
+  #include <arm_neon.h>
+  #define USE_NEON
+#endif
+
 #define SIZE_FACTOR 32
 #define DEFAULT_ALIGNMENT 16
 #define HPF_COEFF 0.01f
@@ -70,6 +75,18 @@ void *_aligned_malloc(size_t size, size_t alignment)
 	#define ALIGNED __declspec(align(DEFAULT_ALIGNMENT))
 #else
 	#define ALIGNED
+#endif
+
+#if defined(USE_NEON)
+static _inline float horizontal_sum_neon_f32(const float32x4_t v) {
+#  if defined(__aarch64__) || defined(_M_ARM64)
+	return vaddvq_f32(v);
+#  else
+	float32x2_t r = vadd_f32(vget_low_f32(v), vget_high_f32(v));
+	r = vpadd_f32(r, r);
+	return vget_lane_f32(r, 0);
+#  endif
+}
 #endif
 
 iqconverter_float_t *iqconverter_float_create(const float *hb_kernel, int len)
@@ -122,6 +139,10 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 
 	__m128 acc = _mm_set_ps(0, 0, 0, 0);
 
+#elif defined(USE_NEON)
+
+	float32x4_t acc = vmovq_n_f32(0);
+
 #else
 
 	float sum = 0.0f;
@@ -150,7 +171,25 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 
 			queue += 8;
 			kernel += 8;
+
+#elif defined(USE_NEON)
+		float32x4_t acc2 = vmovq_n_f32(0);
+
+		for (i = 0; i < it; i++)
+		{
+			const float32x4_t head1 = vld1q_f32(queue);
+			const float32x4_t kern1 = vld1q_f32(kernel);
+			const float32x4_t head2 = vld1q_f32(queue + 4);
+			const float32x4_t kern2 = vld1q_f32(kernel + 4);
+
+			acc = vmlaq_f32(acc, kern1, head1);
+			acc2 = vmlaq_f32(acc2, kern2, head2);
+
+			queue += 8;
+			kernel += 8;
 		}
+
+		acc = vaddq_f32(acc, acc2);
 
 #else
 
@@ -183,6 +222,12 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 		__m128 mul = _mm_mul_ps(kern, head);
 		acc = _mm_add_ps(acc, mul);
 
+#elif defined(USE_NEON)
+
+		const float32x4_t head = vld1q_f32(queue);
+		const float32x4_t kern = vld1q_f32(kernel);
+		acc = vmlaq_f32(acc, kern, head);
+
 #else
 
 		sum += kernel[0] * queue[0]
@@ -208,6 +253,8 @@ static _inline float process_fir_taps(const float *kernel, const float *queue, i
 	float sum = acc.m128_f32[0];
 #endif
 
+#elif defined(USE_NEON)
+	float sum = horizontal_sum_neon_f32(acc);
 #endif
 
 	if (len >= 2)
@@ -327,6 +374,14 @@ static void fir_interleaved_12(iqconverter_float_t *cnv, float *samples, int len
 	cnv->fir_index = fir_index;
 }
 
+#if defined(USE_NEON)
+static inline float32x4_t vld1q_f32_reversed(const float* values) {
+	float32x4_t v = vld1q_f32(values);  /* 0 1 2 3 */
+	v = vrev64q_f32(v);                 /* 1 0 3 2 */
+	return vextq_f32(v, v, 2);          /* 3 2 1 0 */
+}
+#endif
+
 static void fir_interleaved_24(iqconverter_float_t *cnv, float *samples, int len)
 {
 	int i;
@@ -335,7 +390,16 @@ static void fir_interleaved_24(iqconverter_float_t *cnv, float *samples, int len
 	float *fir_kernel = cnv->fir_kernel;
 	float *fir_queue = cnv->fir_queue;
 	float *queue;
+
+#if defined(USE_NEON)
+	const float32x4_t kernel1 = vld1q_f32(fir_kernel + 0);
+	const float32x4_t kernel2 = vld1q_f32(fir_kernel + 4);
+	const float32x4_t kernel3 = vld1q_f32(fir_kernel + 8);
+
+	float32x4_t acc;
+#else
 	float acc = 0;
+#endif
 
 	for (i = 0; i < len; i += 2)
 	{
@@ -343,6 +407,22 @@ static void fir_interleaved_24(iqconverter_float_t *cnv, float *samples, int len
 
 		queue[0] = samples[i];
 
+#if defined(USE_NEON)
+
+		const float32x4_t queue1_1 = vld1q_f32(queue + 0);
+		const float32x4_t queue2_1 = vld1q_f32(queue + 4);
+		const float32x4_t queue3_1 = vld1q_f32(queue + 8);
+
+		const float32x4_t queue3_2 = vld1q_f32_reversed(queue + 12);
+		const float32x4_t queue2_2 = vld1q_f32_reversed(queue + 16);
+		const float32x4_t queue1_2 = vld1q_f32_reversed(queue + 20);
+
+		acc = vmulq_f32(kernel1, vaddq_f32(queue1_1, queue1_2));
+		acc = vmlaq_f32(acc, kernel2, vaddq_f32(queue2_1, queue2_2));
+		acc = vmlaq_f32(acc, kernel3, vaddq_f32(queue3_1, queue3_2));
+
+		samples[i] = horizontal_sum_neon_f32(acc);
+#else
 		acc = fir_kernel[0]  * (queue[0]  + queue[24 - 1])
 			+ fir_kernel[1]  * (queue[1]  + queue[24 - 2])
 			+ fir_kernel[2]  * (queue[2]  + queue[24 - 3])
@@ -357,6 +437,7 @@ static void fir_interleaved_24(iqconverter_float_t *cnv, float *samples, int len
 			+ fir_kernel[11] * (queue[11] + queue[24 - 12]);
 
 		samples[i] = acc;
+#endif
 
 		if (--fir_index < 0)
 		{
@@ -446,13 +527,16 @@ static void delay_interleaved(iqconverter_float_t *cnv, float *samples, int len)
 
 static void remove_dc(iqconverter_float_t *cnv, float *samples, int len)
 {
-	int i;
+	float *sample = samples;
+	const float *samples_end = sample + len;
+
 	ALIGNED float avg = cnv->avg;
 
-	for (i = 0; i < len; i++)
+	while (sample < samples_end)
 	{
-		samples[i] -= avg;
-		avg += SCALE * samples[i];
+		*sample -= avg;
+		avg += SCALE * (*sample);
+		++sample;
 	}
 
 	cnv->avg = avg;
@@ -460,7 +544,6 @@ static void remove_dc(iqconverter_float_t *cnv, float *samples, int len)
 
 static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
 {
-	int i;
 	ALIGNED float hbc = cnv->hbc;
 
 #ifdef USE_SSE2
@@ -476,9 +559,27 @@ static void translate_fs_4(iqconverter_float_t *cnv, float *samples, int len)
 		_mm_storeu_ps(buf, vec);
 	}
 
+#elif defined(USE_NEON)
+
+	float *buf = samples;
+	const float *buf_end = buf + len;
+	float32x4_t vec;
+	float rot_data[4] = {-1.0f, -hbc, 1.0f, hbc};
+	const float32x4_t rot = vld1q_f32(rot_data);
+
+	while (buf < buf_end)
+	{
+		vec = vld1q_f32(buf);
+
+		vec = vmulq_f32(vec, rot);
+		vst1q_f32(buf, vec);
+
+		buf += 4;
+	}
+
 #else
 
-	int j;
+	int i, j;
 
 	for (i = 0; i < len / 4; i++)
 	{
