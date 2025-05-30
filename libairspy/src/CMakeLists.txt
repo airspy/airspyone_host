@@ -79,30 +79,26 @@ endif( ${CYGWIN} )
 
 if( ${UNIX} )
    install(TARGETS airspy
-           LIBRARY DESTINATION lib${LIB_SUFFIX}
            COMPONENT sharedlibs
            )
    install(TARGETS airspy-static
-           ARCHIVE DESTINATION lib${LIB_SUFFIX}
            COMPONENT staticlibs
            )
    install(FILES ${c_headers}
-           DESTINATION include/${PROJECT_NAME}
+           DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
            COMPONENT headers
            )
 endif( ${UNIX} )
 
 if( ${WIN32} )
    install(TARGETS airspy
-           DESTINATION bin
            COMPONENT sharedlibs
            )
    install(TARGETS airspy-static
-           DESTINATION bin
            COMPONENT staticlibs
            )
    install(FILES ${c_headers}
-           DESTINATION include/${PROJECT_NAME}
+           DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
            COMPONENT headers
            )
 endif( ${WIN32} )
