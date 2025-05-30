@@ -3,6 +3,8 @@
 cmake_minimum_required(VERSION 2.8...4.0)
 project (airspy_all)
 
+include(GNUInstallDirs)
+
 #provide missing strtoull() for VC11
 if(MSVC11)
     add_definitions(-Dstrtoull=_strtoui64)
