@@ -1,6 +1,6 @@
 #top dir cmake project for libairspy + airspy-tools
 
-cmake_minimum_required(VERSION 2.8.12.1)
+cmake_minimum_required(VERSION 2.8...4.0)
 project (airspy_all)
 
 #provide missing strtoull() for VC11
