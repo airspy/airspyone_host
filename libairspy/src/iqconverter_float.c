@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2014, Youssef Touil <youssef@airspy.com>
+Copyright (C) 2014-2025, Youssef Touil <youssef@airspy.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to use,
