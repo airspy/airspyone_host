@@ -21,7 +21,7 @@
 
 # Based heavily upon the libftdi cmake setup.
 
-cmake_minimum_required(VERSION 2.8.12.1)
+cmake_minimum_required(VERSION 2.8...4.0)
 project(libairspy C)
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/airspy.h AIRSPY_H_CONTENTS)
 
@@ -99,8 +99,8 @@ ENDIF(CMAKE_CROSSCOMPILING)
 
 set(prefix ${CMAKE_INSTALL_PREFIX})
 set(exec_prefix \${prefix})
-set(libdir \${exec_prefix}/lib${LIB_SUFFIX})
-set(includedir \${prefix}/include)
+set(libdir \${exec_prefix}/${CMAKE_INSTALL_LIBDIR})
+set(includedir \${prefix}/${CMAKE_INSTALL_INCLUDEDIR})
 
 CONFIGURE_FILE(
     ${CMAKE_CURRENT_SOURCE_DIR}/libairspy.pc.in
@@ -109,7 +109,7 @@ CONFIGURE_FILE(
 
 INSTALL(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/libairspy.pc
-    DESTINATION lib${LIB_SUFFIX}/pkgconfig
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 ########################################################################
