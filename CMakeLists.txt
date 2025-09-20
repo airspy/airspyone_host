@@ -1,6 +1,6 @@
 #top dir cmake project for libairspy + airspy-tools
 
-cmake_minimum_required(VERSION 2.8.12.1)
+cmake_minimum_required(VERSION 3.5)
 project (airspy_all)
 
 #provide missing strtoull() for VC11
@@ -43,7 +43,7 @@ if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
        ${CMAKE_CURRENT_BINARY_DIR}/airspy-tools/src/libusb-1.0.dll
    COPYONLY)
    endif()
-   
+
    if (NOT DEFINED THREADS_PTHREADS_WIN32_LIBRARY)
    configure_file(
        ${CMAKE_CURRENT_BINARY_DIR}/../libs_win32/pthreadGC2.dll
