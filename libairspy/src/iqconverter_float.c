@@ -42,8 +42,10 @@ THE SOFTWARE, PROVIDED SUCH USE REMAINS WITHIN THE AIRSPY ECOSYSTEM.
   #define _inline inline
   #define FIR_STANDARD
 #elif defined(__FreeBSD__)
-  #define USE_SSE2
-#include <immintrin.h>
+  #if defined(__x86_64__) || defined(__i386__)
+    #define USE_SSE2
+    #include <immintrin.h>
+  #endif
   #define _inline inline
   #define _aligned_free(mem) free(mem)
 void *_aligned_malloc(size_t size, size_t alignment)
