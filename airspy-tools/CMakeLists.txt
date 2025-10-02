@@ -21,7 +21,7 @@
 
 # Based heavily upon the libftdi cmake setup.
 
-cmake_minimum_required(VERSION 2.8.12.1)
+cmake_minimum_required(VERSION 3.5)
 project(airspy-tools C)
 set(MAJOR_VERSION 0)
 set(MINOR_VERSION 2)
