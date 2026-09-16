@@ -604,6 +604,30 @@ static void airspy_open_exit(airspy_device_t* device)
 	device->usb_context = NULL;
 }
 
+static int airspy_set_usb_configuration(libusb_device_handle* dev_handle)
+{
+	int configuration;
+	int result = libusb_get_configuration(dev_handle, &configuration);
+	if (result != 0)
+	{
+		return result;
+	}
+
+	/* Setting the current configuration again resets USB state; it is not a no-op.
+	 * Serial-number discovery temporarily opens other Airspy devices. On macOS,
+	 * a concurrent opener may still read descriptors without exclusive device
+	 * access, but cannot set the configuration. Avoid that unnecessary operation
+	 * when configuration 1 is already active. Callers must still claim interface
+	 * 0 below; this does not allow sharing an interface owned by another process.
+	 */
+	if (configuration == 1)
+	{
+		return LIBUSB_SUCCESS;
+	}
+
+	return libusb_set_configuration(dev_handle, 1);
+}
+
 static void airspy_open_device(airspy_device_t* device,
 	int* ret,
 	uint16_t vid,
@@ -680,7 +704,7 @@ static void airspy_open_device(airspy_device_t* device,
 								libusb_detach_kernel_driver(dev_handle, 0);
 							}
 #endif
-							result = libusb_set_configuration(dev_handle, 1);
+							result = airspy_set_usb_configuration(dev_handle);
 							if (result != 0)
 							{
 								libusb_close(dev_handle);
@@ -725,7 +749,7 @@ static void airspy_open_device(airspy_device_t* device,
 						libusb_detach_kernel_driver(dev_handle, 0);
 					}
 #endif
-					result = libusb_set_configuration(dev_handle, 1);
+					result = airspy_set_usb_configuration(dev_handle);
 					if (result != 0)
 					{
 						libusb_close(dev_handle);
@@ -787,7 +811,7 @@ static void airspy_open_device_fd(airspy_device_t* device,
 	}
 #endif
 
-	result = libusb_set_configuration(device->usb_device, 1);
+	result = airspy_set_usb_configuration(device->usb_device);
 	if (result != 0)
 	{
 		libusb_close(device->usb_device);
