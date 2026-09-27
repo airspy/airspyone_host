@@ -238,6 +238,22 @@ uint64_t bytes_to_xfer = 0;
 
 bool call_set_packing = false;
 uint32_t packing_val = 0;
+uint32_t framing_val = 1;
+uint32_t watchdog_val = 0;
+bool framing_given = false;
+airspy_transfer_metadata_t frame_meta;
+uint32_t uart_bytes_total = 0;
+bool uart_baud_given = false;
+uint32_t uart_baud_val = 0;
+uint32_t print_uart_val = 0;
+bool sof_given = false;
+uint32_t sof_divider_val = 0;
+uint32_t sof_tags_total = 0;
+bool calibration_given = false;
+int32_t calibration_val = 0;
+uint64_t frame_gap_samples = 0;
+uint64_t frame_duplicate_chunks = 0;
+uint32_t frame_blocks = 0;
 
 bool sample_rate = false;
 uint32_t sample_rate_val;
@@ -367,6 +383,34 @@ int rx_callback(airspy_transfer_t* transfer)
 	struct timeval time_now;
 	float time_difference, rate;
 
+	{
+		airspy_transfer_metadata_t meta;
+		if (airspy_transfer_get_metadata(transfer, &meta) == AIRSPY_SUCCESS)
+		{
+			uint32_t i;
+			frame_gap_samples += meta.gap_samples;
+			frame_duplicate_chunks += meta.duplicate_chunks;
+			frame_meta = meta;
+			sof_tags_total += meta.sof_tags_len;
+			if (verbose)
+			{
+				for (i = 0; i < meta.sof_tags_len; i++)
+				{
+					const airspy_sof_tag_t* tag = &meta.sof_tags[i];
+					fprintf(stderr, "SOF %u: frame %u at sample %llu + %.4f\n",
+						tag->count, tag->frame, (unsigned long long)tag->sample_index, tag->fraction / 4294967296.0);
+				}
+			}
+			if (meta.uart_len)
+			{
+				uart_bytes_total += meta.uart_len;
+				if (print_uart_val)
+					fwrite(meta.uart_data, 1, meta.uart_len, stderr);
+			}
+			frame_blocks++;
+		}
+	}
+
 	if( fd != NULL ) 
 	{
 		switch(sample_type_val)
@@ -397,7 +441,11 @@ int rx_callback(airspy_transfer_t* transfer)
 				break;
 
 			case AIRSPY_SAMPLE_RAW:
-				if (packing_val)
+				if (packing_val == 3)
+				{
+					bytes_to_write = transfer->sample_count; /* 8-bit: one byte per sample */
+				}
+				else if (packing_val)
 				{
 					bytes_to_write = transfer->sample_count * INT12_EL_SIZE_BITS / INT8_EL_SIZE_BITS;
 				}
@@ -473,7 +521,12 @@ static void usage(void)
 	fprintf(stderr, "-w Receive data into file with WAV header and automatic name\n");
 	fprintf(stderr, " This is for SDR# compatibility and may not work with other software\n");
 	fprintf(stderr, "[-s serial_number_64bits]: Open device with specified 64bits serial number\n");
-	fprintf(stderr, "[-p packing]: Set packing for samples, \n");
+	fprintf(stderr, "[-p packing]: 0 = 16-bit samples (default), 1 = 12-bit packed, 3 = 8-bit (top 8 bits),\n");
+	fprintf(stderr, "\te.g. -a 15000000 -p 3 streams 15 MSPS IQ (30 MSPS real) at the 30 MB/s of 10 MSPS packed\n");
+	fprintf(stderr, "[-F framing]: Framed chunks with sample counters, 1=enabled(default, if the firmware supports it), 0=disabled\n");
+	fprintf(stderr, "[-W watchdog]: 1=feed the device watchdog every second and show its state, 0=disabled(default)\n");
+	fprintf(stderr, "[-S sof_divider]: Tag the USB Start-Of-Frame of every frame (1 ms) whose number is a multiple of this\n");
+	fprintf(stderr, "\twith its sample index, 0=off(default); -d prints every tag\n");
 	fprintf(stderr, " 1=enabled(12bits packed), 0=disabled(default 16bits not packed)\n");
 	fprintf(stderr, "[-f frequency_MHz]: Set frequency in MHz between [%lu, %lu] (default %luMHz)\n",
 		FREQ_HZ_MIN / FREQ_ONE_MHZ, FREQ_HZ_MAX / FREQ_ONE_MHZ, DEFAULT_FREQ_HZ / FREQ_ONE_MHZ);
@@ -538,7 +591,7 @@ int main(int argc, char** argv)
 	double freq_hz_temp;
 	char str[20];
 
-	while( (opt = getopt(argc, argv, "r:ws:p:f:a:t:b:v:m:l:g:h:n:d")) != EOF )
+	while( (opt = getopt(argc, argv, "r:ws:p:F:W:B:N:C:S:f:a:t:b:v:m:l:g:h:n:d")) != EOF )
 	{
 		result = AIRSPY_SUCCESS;
 		switch( opt ) 
@@ -557,12 +610,49 @@ int main(int argc, char** argv)
 				result = parse_u64(optarg, &serial_number_val);
 			break;
 
+			case 'W': /* watchdog */
+				result = parse_u32(optarg, &watchdog_val);
+				if (result == AIRSPY_SUCCESS && watchdog_val > 1)
+				{
+					result = AIRSPY_ERROR_INVALID_PARAM;
+				}
+				break;
+
+			case 'C': /* crystal correction in ppb */
+				calibration_given = true;
+				calibration_val = (int32_t)strtol(optarg, NULL, 10);
+				break;
+
+			case 'B': /* uart baud */
+				uart_baud_given = true;
+				result = parse_u32(optarg, &uart_baud_val);
+				break;
+
+			case 'N': /* print uart bytes */
+				result = parse_u32(optarg, &print_uart_val);
+				break;
+
+			case 'S': /* USB SOF tagging divider */
+				sof_given = true;
+				result = parse_u32(optarg, &sof_divider_val);
+				break;
+
+			case 'F': /* framing */
+				framing_given = true;
+				result = parse_u32(optarg, &framing_val);
+				if (result == AIRSPY_SUCCESS && framing_val > 1)
+				{
+					result = AIRSPY_ERROR_INVALID_PARAM;
+				}
+				break;
+
 			case 'p': /* packing */
 				result = parse_u32(optarg, &packing_val_u32);
 				switch (packing_val_u32)
 				{
 					case 0:
 					case 1:
+					case 3:
 						packing_val = packing_val_u32;
 						call_set_packing = true;
 					break;
@@ -940,6 +1030,42 @@ int main(int argc, char** argv)
 		}
 	}
 
+	if (calibration_given)
+	{
+		result = airspy_set_calibration(device, calibration_val);
+		if (result != AIRSPY_SUCCESS)
+		{
+			printf("airspy_set_calibration() failed: %s (%d)\n", airspy_error_name(result), result);
+		}
+	}
+	if (uart_baud_given)
+	{
+		result = airspy_set_uart_baud(device, uart_baud_val);
+		if (result != AIRSPY_SUCCESS)
+		{
+			printf("airspy_set_uart_baud() failed: %s (%d)\n", airspy_error_name(result), result);
+		}
+	}
+	if (sof_given)
+	{
+		result = airspy_set_sof_divider(device, sof_divider_val);
+		if (result != AIRSPY_SUCCESS)
+		{
+			printf("airspy_set_sof_divider() failed: %s (%d)\n", airspy_error_name(result), result);
+		}
+	}
+
+	if (framing_given)
+	{
+		result = airspy_set_framing(device, (uint8_t)framing_val);
+		if( result != AIRSPY_SUCCESS ) {
+			fprintf(stderr, "airspy_set_framing() failed: %s (%d)\n", airspy_error_name(result), result);
+			airspy_close(device);
+			airspy_exit();
+			return EXIT_FAILURE;
+		}
+	}
+
 	result = airspy_set_rf_bias(device, biast_val);
 	if( result != AIRSPY_SUCCESS ) {
 		fprintf(stderr, "airspy_set_rf_bias() failed: %s (%d)\n", airspy_error_name(result), result);
@@ -1044,10 +1170,52 @@ int main(int argc, char** argv)
 	while( (airspy_is_streaming(device) == AIRSPY_TRUE) &&
 		(do_exit == false) )
 	{
+		airspy_stream_status_t stream_status;
 		float average_rate_now = average_rate * 1e-6f;
 		sprintf(str, "%2.3f", average_rate_now);
 		average_rate_now = 9.5f;
 		fprintf(stderr, "Streaming at %5s MSPS\n", str);
+		if (airspy_get_stream_status(device, &stream_status) == AIRSPY_SUCCESS)
+		{
+			fprintf(stderr, "Device ring: backlog max %u of %u chunks (device queue lag max %u), lost %u, overruns %u, dma errors %u, usb errors %u, adc overflows %u, pps %u, sof %u tagged of %u (divider %u)\n",
+				stream_status.backlog_max, stream_status.ring_chunks, stream_status.m0_lag_max, stream_status.lost, stream_status.overruns, stream_status.dma_errors, stream_status.usb_errors, stream_status.adc_overflows, stream_status.pps_count,
+				stream_status.sof_count, stream_status.sof_edges, stream_status.sof_divider);
+		}
+		if (watchdog_val)
+		{
+			airspy_watchdog_status_t wd;
+			if (airspy_watchdog_feed(device, &wd) == AIRSPY_SUCCESS)
+			{
+				if (wd.flags & AIRSPY_WATCHDOG_FLAG_ARMED)
+					fprintf(stderr, "Watchdog: armed%s%s, timeout %u ms, %u ms were left before this feed%s\n",
+						(wd.flags & AIRSPY_WATCHDOG_FLAG_STRICT) ? ", strict" : ", relaxed",
+						(wd.flags & AIRSPY_WATCHDOG_FLAG_HOST_OWNED) ? ", host in charge" : "",
+						wd.timeout_ms, wd.remaining_ms, (wd.flags & AIRSPY_WATCHDOG_FLAG_RESET_BY_WATCHDOG) ? ", last reset was the watchdog" : "");
+				else
+					fprintf(stderr, "Watchdog: not built into this firmware\n");
+			}
+		}
+		if (frame_blocks)
+		{
+			fprintf(stderr, "Frames: sample index %llu, gap samples %llu, duplicate chunks %llu, sync errors %u, chunks per block %u, freq %u Hz\n",
+				(unsigned long long)frame_meta.sample_index, (unsigned long long)frame_gap_samples,
+				(unsigned long long)frame_duplicate_chunks, frame_meta.sync_errors, frame_meta.chunks, frame_meta.freq_hz);
+			if (frame_meta.pps_count)
+			{
+				fprintf(stderr, "PPS: %u edges, last at sample %llu + %.4f (%.6f s before this block), uart bytes %u\n",
+					frame_meta.pps_count, (unsigned long long)frame_meta.pps_sample_index,
+					frame_meta.pps_fraction / 4294967296.0,
+					(double)(int64_t)(frame_meta.sample_index - frame_meta.pps_sample_index) / ((double)wav_sample_per_sec * (wav_nb_channels == 1 ? 1.0 : 2.0)),
+					uart_bytes_total);
+			}
+			if (frame_meta.sof_count)
+			{
+				fprintf(stderr, "SOF: %u tagged, %u received, last: frame %u at sample %llu + %.4f (%.6f s before this block)\n",
+					frame_meta.sof_count, sof_tags_total, frame_meta.sof_frame,
+					(unsigned long long)frame_meta.sof_sample_index, frame_meta.sof_fraction / 4294967296.0,
+					(double)(int64_t)(frame_meta.sample_index - frame_meta.sof_sample_index) / ((double)wav_sample_per_sec * (wav_nb_channels == 1 ? 1.0 : 2.0)));
+			}
+		}
 		if ((limit_num_samples == true) && (bytes_to_xfer == 0))
 			do_exit = true;
 		else

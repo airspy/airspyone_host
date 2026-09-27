@@ -116,6 +116,65 @@ typedef struct {
 	uint32_t revision;
 } airspy_lib_version_t;
 
+/* Device stream counters, in chunks */
+typedef struct {
+	uint32_t captured;      /* chunks captured by the ADC DMA */
+	uint32_t delivered; /* chunks whose USB transfer to the host completed */
+	uint32_t lost; /* chunks overwritten before they could be sent: the sample stream has gaps */
+	uint32_t overruns;
+	uint32_t backlog_max; /* worst number of chunks pending at the device */
+	uint32_t ring_chunks;   /* chunks the device ring buffer holds */
+	uint32_t chunk_bytes;   /* bytes per chunk on USB */
+	uint32_t chunk_samples; /* real ADC samples per chunk (half as many IQ samples) */
+	uint32_t m0_lag_max; /* worst lag of the device's own USB queuing behind the ADC, in chunks */
+	uint32_t dma_errors; /* ADC DMA bus errors: the DMA could not write part of the ring */
+	uint32_t usb_errors; /* bulk transfers the USB controller retired with an error */
+  uint32_t adc_overflows; /* chunks during which the ADC FIFO overflowed */
+  uint32_t pps_count; /* PPS edges captured since the stream started */
+  uint32_t sof_count; /* USB SOFs tagged since the stream started, see airspy_set_sof_divider() */
+  uint32_t sof_edges; /* USB SOFs captured since the stream started, tagged or not */
+  uint32_t sof_divider; /* SOF tagging divider in effect, 0 = off */
+} airspy_stream_status_t;
+
+/* Metadata of the block delivered to the sample callback */
+#define AIRSPY_METADATA_UART_MAX (512) /* more than the 15 bytes per chunk times the chunks per block */
+#define AIRSPY_METADATA_SOF_MAX (40) /* more than the chunks per block: each chunk carries one SOF tag */
+
+/* A USB Start-Of-Frame tag: the device captured the SOF opening USB frame 'frame' at this sample */
+typedef struct {
+	uint64_t sample_index;
+	uint32_t fraction; /* position of the SOF within that sample, in 1/2^32 sample units */
+	uint32_t frame; /* USB frame number, extended past the controller's 11-bit wrap by the device */
+	uint32_t count; /* SOFs tagged since the stream started, this one included */
+} airspy_sof_tag_t;
+
+typedef struct {
+	uint64_t sample_index; /* device sample index of the first sample of this block */
+	uint64_t gap_samples; /* samples missing between the previous block and this one */
+	uint32_t chunks;         /* device chunks in this block */
+	uint32_t lost_chunks; /* chunks the device lost since the stream started */
+	uint32_t overrun_chunks; /* chunks the device delivered corrupted since the stream started */
+	uint32_t sync_errors; /* chunks with an invalid header since the stream started */
+	uint32_t duplicate_chunks; /* chunks in this block whose samples had already been delivered */
+	uint32_t freq_hz;
+	/* External PPS input, from the block's last chunk */
+	uint64_t pps_sample_index;
+	uint32_t pps_fraction; /* position of the edge within that sample, in 1/2^32 sample units */
+	uint32_t pps_count; /* PPS edges captured since the stream started */
+	/* Bytes received on the device's auxiliary UART */
+	uint32_t uart_len;
+	uint8_t uart_data[AIRSPY_METADATA_UART_MAX];
+	uint32_t flags;          /* AIRSPY_FRAME_FLAG_* of the first chunk */
+	/* USB Start-Of-Frame tags, see airspy_set_sof_divider(): the block's last one, and every distinct one its chunks carried */
+	uint64_t sof_sample_index;
+	uint32_t sof_fraction;
+	uint32_t sof_frame;
+	uint32_t sof_count;
+	uint32_t sof_tags_len;
+	airspy_sof_tag_t sof_tags[AIRSPY_METADATA_SOF_MAX];
+} airspy_transfer_metadata_t;
+
+
 typedef int (*airspy_sample_block_cb_fn)(airspy_transfer* transfer);
 
 extern ADDAPI void ADDCALL airspy_lib_version(airspy_lib_version_t* lib_version);
@@ -209,7 +268,41 @@ extern ADDAPI int ADDCALL airspy_set_sensitivity_gain(struct airspy_device* devi
 extern ADDAPI int ADDCALL airspy_set_rf_bias(struct airspy_device* dev, uint8_t value);
 
 /* Parameter value shall be 0=Disable Packing or 1=Enable Packing */
+/* 0 = 16-bit samples, 1 = 12-bit packed, 3 = 8-bit */
 extern ADDAPI int ADDCALL airspy_set_packing(struct airspy_device* device, uint8_t value);
+
+/* Read the device stream counters */
+extern ADDAPI int ADDCALL airspy_get_stream_status(struct airspy_device* device, airspy_stream_status_t* status);
+
+/* USB Start-Of-Frame timestamps: the device tags the SOF opening every USB frame (1 ms; at high speed the
+   microframe 0 SOF, the one a full-speed bus sees) whose frame number is a multiple of the divider, with its
+   sample index; 0 turns it off. The tags reach the sample callback through airspy_transfer_get_metadata().
+   Can be changed while streaming; the library sends it again at every airspy_start_rx(). Each chunk header
+   carries one tag, so keep the tag rate below the chunk rate (sample rate / chunk_samples) to receive every
+   tag; a skipped tag shows as a jump in the tag count. Works alongside the PPS input. */
+extern ADDAPI int ADDCALL airspy_set_sof_divider(struct airspy_device* device, uint32_t divider);
+
+/* Auxiliary UART on the device (GNSS module): 8N1 */
+extern ADDAPI int ADDCALL airspy_set_uart_baud(struct airspy_device* device, uint32_t baud);
+extern ADDAPI int ADDCALL airspy_uart_write(struct airspy_device* device, const uint8_t* data, uint16_t len);
+
+/* Crystal correction in ppb, applied at once to the tuner */
+extern ADDAPI int ADDCALL airspy_set_calibration(struct airspy_device* device, int32_t correction_ppb);
+extern ADDAPI int ADDCALL airspy_get_calibration(struct airspy_device* device, airspy_calibration_t* calibration);
+
+/* Debug access to the device: read or write up to 64 bytes of memory */
+extern ADDAPI int ADDCALL airspy_mem_read(struct airspy_device* device, uint32_t address, void* data, uint16_t len);
+extern ADDAPI int ADDCALL airspy_mem_write(struct airspy_device* device, uint32_t address, const void* data, uint16_t len);
+extern ADDAPI int ADDCALL airspy_call(struct airspy_device* device, uint32_t core, uint32_t address, const uint32_t args[4], uint32_t* r0, uint32_t timeout_ms);
+
+/* Framed chunks: the library asks the device, at every airspy_start_rx() */
+extern ADDAPI int ADDCALL airspy_set_framing(struct airspy_device* device, uint8_t value);
+
+extern ADDAPI int ADDCALL airspy_watchdog_status(struct airspy_device* device, airspy_watchdog_status_t* status);
+extern ADDAPI int ADDCALL airspy_watchdog_feed(struct airspy_device* device, airspy_watchdog_status_t* status);
+
+/* Fill in the metadata of the block a sample callback is being called with */
+extern ADDAPI int ADDCALL airspy_transfer_get_metadata(airspy_transfer* transfer, airspy_transfer_metadata_t* metadata);
 
 extern ADDAPI const char* ADDCALL airspy_error_name(enum airspy_error errcode);
 extern ADDAPI const char* ADDCALL airspy_board_id_name(enum airspy_board_id board_id);

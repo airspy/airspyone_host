@@ -52,6 +52,7 @@ typedef enum
 
 // Commands (usb vendor request) shared between Firmware and Host.
 #define AIRSPY_CMD_MAX (27)
+#define AIRSPY_EXT_CMD_BASE (0x80)
 typedef enum
 {
     AIRSPY_INVALID                    = 0 ,
@@ -81,8 +82,96 @@ typedef enum
     AIRSPY_GPIODIR_READ               = 24,
     AIRSPY_GET_SAMPLERATES            = 25,
     AIRSPY_SET_PACKING                = 26,
-    AIRSPY_SPIFLASH_ERASE_SECTOR      = AIRSPY_CMD_MAX
+    AIRSPY_SPIFLASH_ERASE_SECTOR      = AIRSPY_CMD_MAX,
+    /* Stream metadata, timing and debug commands, the same numbers as on the HydraSDR RFOne */
+    AIRSPY_GET_STREAM_STATUS          = AIRSPY_EXT_CMD_BASE + 0,
+    AIRSPY_SET_FRAMING                = AIRSPY_EXT_CMD_BASE + 1,
+    AIRSPY_WATCHDOG                   = AIRSPY_EXT_CMD_BASE + 2,
+    AIRSPY_SET_UART_BAUD              = AIRSPY_EXT_CMD_BASE + 3, /* wValue = baud & 0xFFFF, wIndex = baud >> 16 */
+    AIRSPY_UART_WRITE                 = AIRSPY_EXT_CMD_BASE + 4, /* OUT data = bytes to transmit (max 64) */
+    AIRSPY_SET_CALIBRATION            = AIRSPY_EXT_CMD_BASE + 5, /* wValue|wIndex<<16 = crystal correction in ppb (int32), applied at once */
+    AIRSPY_GET_CALIBRATION            = AIRSPY_EXT_CMD_BASE + 6, /* IN: airspy_calibration_t */
+    /* Debug access, see airspy_debug: */
+    AIRSPY_MEM_READ                   = AIRSPY_EXT_CMD_BASE + 7, /* IN: wValue | wIndex << 16 = address, wLength <= 64 bytes */
+    AIRSPY_MEM_WRITE                  = AIRSPY_EXT_CMD_BASE + 8, /* OUT: same addressing, data = bytes to write */
+    AIRSPY_CALL                       = AIRSPY_EXT_CMD_BASE + 9, /* OUT: airspy_call_request_t runs a function; IN: airspy_call_result_t */
+    AIRSPY_SET_SOF_DIVIDER            = AIRSPY_EXT_CMD_BASE + 10 /* wValue | wIndex << 16 = divider: tag the first SOF of every USB frame whose number is a multiple of it, 0 = off; cleared at every stream stop */
 } airspy_vendor_request;
+
+#define AIRSPY_FRAME_HEADER_SIZE (96)
+#define AIRSPY_FRAME_MAGIC (0x42445642)
+#define AIRSPY_FRAME_FLAG_PACKED (1 << 0) /* 12-bit packed samples (packing 1 and 2) */
+#define AIRSPY_FRAME_FLAG_8BIT   (1 << 1) /* one byte per sample, the top 8 bits (packing 3) */
+#define AIRSPY_FRAME_FLAG_TIMESTAMP (1 << 2) /* packing 2: chunk counter and ADC status ahead of the samples */
+
+/* Crystal correction in effect: the flash block's value */
+#define AIRSPY_CALIBRATION_SOURCE_NONE  (0)
+#define AIRSPY_CALIBRATION_SOURCE_FLASH (1)
+#define AIRSPY_CALIBRATION_SOURCE_HOST  (2)
+typedef struct
+{
+  uint32_t core; /* 0 = M0 (runs in the USB request handler), 1 = M4 (runs in its main loop) */
+  uint32_t address; /* function address; the Thumb bit is added by the device */
+  uint32_t r[4];    /* arguments */
+} airspy_call_request_t;
+
+typedef struct
+{
+  uint32_t status; /* 0 = done (r0 valid), 1 = still running on the M4, 2 = bad request */
+  uint32_t r0;
+} airspy_call_result_t;
+
+typedef struct
+{
+  int32_t correction_ppb;
+  uint32_t source; /* AIRSPY_CALIBRATION_SOURCE_* */
+} airspy_calibration_t;
+
+typedef struct
+{
+  uint64_t sample_index; /* index of this chunk's first sample in the ADC sample stream */
+  uint32_t magic;          /* AIRSPY_FRAME_MAGIC */
+  uint32_t chunk_index;    /* chunk number since stream start */
+  uint32_t sample_count;   /* real samples in this chunk */
+  uint32_t flags;          /* AIRSPY_FRAME_FLAG_* */
+  uint32_t lost_chunks; /* chunks the device lost so far, see airspy_stream_status_t */
+  uint32_t overrun_chunks; /* chunks the device delivered corrupted so far */
+  uint32_t freq_hz; /* tuner frequency the device was set to when this chunk was queued */
+  uint32_t pps_sample_index_lo; /* sample index of the last PPS edge captured since the stream started */
+  uint32_t pps_sample_index_hi;
+  uint32_t pps_fraction; /* position of that edge within the sample, in 1/2^32 sample units */
+  uint32_t pps_count; /* PPS edges captured since the stream started */
+  uint8_t uart_len; /* bytes received on the auxiliary UART (GNSS module) carried in this chunk */
+  uint8_t uart_data[15]; /* AIRSPY_FRAME_UART_BYTES */
+  /* USB Start-Of-Frame tagging (AIRSPY_SET_SOF_DIVIDER), independent of the PPS input */
+  uint32_t sof_sample_index_lo; /* sample index of the last tagged SOF */
+  uint32_t sof_sample_index_hi;
+  uint32_t sof_fraction; /* position of that SOF within the sample, in 1/2^32 sample units */
+  uint32_t sof_frame; /* its USB frame number, extended past the 11-bit wrap by the device */
+  uint32_t sof_count; /* SOFs tagged since the stream started */
+  uint32_t reserved[2];    /* zero */
+} airspy_frame_header_t;   /* AIRSPY_FRAME_HEADER_SIZE bytes */
+
+/* Chunk size on the wire, framed or not */
+#define AIRSPY_FRAME_WIRE_UNPACKED (16384)
+#define AIRSPY_FRAME_WIRE_PACKED (6144)
+#define AIRSPY_FRAME_WIRE_8BIT (4096)
+#define AIRSPY_FRAME_UART_BYTES (15) /* auxiliary UART bytes carried per chunk header */
+
+/* AIRSPY_WATCHDOG: wIndex 1 feeds the watchdog and reports */
+#define AIRSPY_WATCHDOG_FLAG_ARMED (1 << 0)             /* the watchdog is running */
+#define AIRSPY_WATCHDOG_FLAG_RESET_BY_WATCHDOG (1 << 1) /* the last reset was a watchdog time-out (best effort) */
+#define AIRSPY_WATCHDOG_FLAG_HOST_OWNED (1 << 2) /* strict mode: the host has made contact, only the host feeds */
+#define AIRSPY_WATCHDOG_FLAG_STRICT (1 << 3) /* firmware built with WATCHDOG=1: the host protocol applies */
+#define AIRSPY_WATCHDOG_SELF_FEEDS (6) /* strict mode: self feeds before contact, about 5.6 s each */
+
+typedef struct
+{
+    uint32_t flags;           /* AIRSPY_WATCHDOG_FLAG_* */
+    uint32_t timeout_ms;      /* time between feeds the device tolerates */
+    uint32_t remaining_ms; /* time left before a reset when the reply was built */
+    uint32_t self_feeds_left; /* strict mode: self feeds left before contact; 0xFFFFFFFF when unlimited */
+} airspy_watchdog_status_t;
 
 typedef enum
 {

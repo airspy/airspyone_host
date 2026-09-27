@@ -167,6 +167,14 @@ int main(int argc, char** argv)
 				continue;
 			}
 			printf("Firmware Version: %s\n", version);
+			{
+				airspy_calibration_t cal;
+				if (airspy_get_calibration(devices[i], &cal) == AIRSPY_SUCCESS)
+				{
+					const char* src = cal.source == AIRSPY_CALIBRATION_SOURCE_FLASH ? "flash" : cal.source == AIRSPY_CALIBRATION_SOURCE_HOST ? "host" : "none";
+					printf("Calibration: %d ppb (%s)\n", cal.correction_ppb, src);
+				}
+			}
 
 			result = airspy_board_partid_serialno_read(devices[i], &read_partid_serialno);
 			if (result != AIRSPY_SUCCESS) {
